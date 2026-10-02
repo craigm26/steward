@@ -66,6 +66,23 @@ export class RecordStore {
 		return ((await r.readTree(tree)) ?? []).map((e) => ({ name: e.name, type: e.type }));
 	}
 
+	/** Every file path in the repo at `ref`. */
+	async listAll(ref?: string): Promise<string[]> {
+		using r = await getRepo(this.env, this.repo);
+		const [tip] = await r.log({ ref: ref ?? this.branch, limit: 1 });
+		if (!tip) return [];
+		const out: string[] = [];
+		const walk = async (tree: string, prefix: string) => {
+			for (const e of (await r.readTree(tree)) ?? []) {
+				const p = prefix ? `${prefix}/${e.name}` : e.name;
+				if (e.type === "tree") await walk(e.hash, p);
+				else out.push(p);
+			}
+		};
+		await walk(tip.treeHash, "");
+		return out;
+	}
+
 	private async writer() {
 		const cached = writeTokens.get(this.repo);
 		if (cached && cached.until > Date.now() + 30_000) return { url: cached.url, token: cached.token };

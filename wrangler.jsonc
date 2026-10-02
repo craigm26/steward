@@ -15,7 +15,42 @@
     // The workers.dev subdomain of the account, used to name candidate Preview URLs.
     "WORKERS_SUBDOMAIN": "craigm26",
     // The record repo: playbooks, decisions, checks and grants for the app.
-    "RECORD_REPO": "larkspur-ap.record"
+    "RECORD_REPO": "larkspur-ap.record",
+    // The app this deployment stewards; also the name of its board.
+    "PROJECT": "larkspur-ap",
+    // Anyone with the URL may watch the board; only keys can change it.
+    "PUBLIC_READ": "on",
+    // The model the referee argues with (Workers AI).
+    "REFEREE_MODEL": "@cf/moonshotai/kimi-k2.7-code"
+  },
+  "ai": { "binding": "AI" },
+  // The board UI; /api/* goes to the Worker first.
+  "assets": {
+    "directory": "./public",
+    "binding": "ASSETS",
+    "not_found_handling": "single-page-application",
+    "run_worker_first": ["/api/*"]
+  },
+  // The live board: tasks, claims, candidates, decisions, events.
+  "durable_objects": {
+    "bindings": [{ "name": "BOARD", "class_name": "ProjectBoard" }]
+  },
+  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["ProjectBoard"] }],
+  // Gate 1 runs as a Workflow, started by Artifacts on every push in the namespace.
+  "workflows": [
+    { "name": "steward-gate", "binding": "GATE", "class_name": "GateWorkflow" },
+    { "name": "steward-decide", "binding": "DECIDE", "class_name": "DecideWorkflow" }
+  ],
+  "triggers": {
+    // Every 5 minutes: close forks past their budget. Mondays 04:00 UTC: the weekly check.
+    "crons": ["*/5 * * * *", "0 4 * * 1"],
+    "events": [
+      {
+        "type": "cf.artifacts.repo.pushed",
+        "filter": { "namespace": "steward" },
+        "targets": [{ "type": "workflow", "workflow_name": "steward-gate" }]
+      }
+    ]
   },
   "observability": {
     "enabled": true

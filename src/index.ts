@@ -1,106 +1,87 @@
-import { candidateBranch, ensureFork, forkName, getRepo, isArtifactsError, previewUrl, remoteFor, type ArtifactsEnv } from "./artifacts";
+// Steward: the pull request as a decision. Agents race in their own Artifacts forks; gate 1 checks every
+// candidate mechanically; a judge proposes one; a human steward decides, unless the path earned auto-merge.
+
+import { candidateBranch, ensureFork, forkName, previewUrl, remoteFor, type ArtifactsEnv } from "./artifacts";
 import { promote } from "./git/ops";
+import { handleApi } from "./api";
 import { runCheck } from "./check";
-import { demoRecordFiles } from "./demo/record";
+import { closeFork, maybeDecide } from "./lifecycle";
+import { loadProject } from "./project";
 import { RecordStore } from "./record/store";
 import type { JudgeEnv } from "./judge";
+import type { ProjectBoard } from "./board";
+import { boardFor } from "./board";
+
+export { ProjectBoard } from "./board";
+export { GateWorkflow } from "./gate";
+export { DecideWorkflow } from "./decide";
 
 export interface Env extends ArtifactsEnv, JudgeEnv {
 	STEWARD_ADMIN_KEY: string;
 	RECORD_REPO: string;
+	PROJECT: string;
+	PUBLIC_READ: string;
+	REFEREE_MODEL?: string;
+	BOARD: DurableObjectNamespace<ProjectBoard>;
+	GATE: Workflow;
+	DECIDE: Workflow;
+	AI: Ai;
+	ASSETS: Fetcher;
 }
 
 const json = (body: unknown, status = 200) => Response.json(body, { status });
+const isAdmin = (request: Request, env: Env) => !!env.STEWARD_ADMIN_KEY && request.headers.get("authorization") === `Bearer ${env.STEWARD_ADMIN_KEY}`;
 
-function authorized(request: Request, env: Env): boolean {
-	const header = request.headers.get("authorization") ?? "";
-	return !!env.STEWARD_ADMIN_KEY && header === `Bearer ${env.STEWARD_ADMIN_KEY}`;
-}
-
-async function body<T>(request: Request): Promise<T> {
-	try {
-		return (await request.json()) as T;
-	} catch {
-		throw Object.assign(new Error("body must be JSON"), { status: 400 });
+/** The day-one spike's two calls, kept for scripts/spike.mjs. */
+async function spike(request: Request, env: Env, path: string): Promise<Response | null> {
+	if (request.method !== "POST" || !path.startsWith("/api/spike/")) return null;
+	if (!isAdmin(request, env)) return json({ error: "unauthorized" }, 401);
+	const b = (await request.json()) as { app: string; task: string; agent: string; ttl?: number; worker?: string };
+	const t0 = Date.now();
+	if (path === "/api/spike/fork") {
+		const fork = await ensureFork(env, b.app, b.task, b.agent);
+		const remote = await remoteFor(env, fork.name, "write", b.ttl ?? 3600);
+		return json({ fork: fork.name, created: fork.created, remote: remote.url, token: remote.token, expiresAt: remote.expiresAt, ms: Date.now() - t0 });
 	}
-}
-
-/** Creates the record repo when it does not exist yet. */
-async function ensureRecordRepo(env: Env): Promise<boolean> {
-	try {
-		using r = await getRepo(env, env.RECORD_REPO);
-		await r.info();
-		return false;
-	} catch (e) {
-		if (!isArtifactsError(e, "NOT_FOUND")) throw e;
+	if (path === "/api/spike/promote") {
+		const [source, target] = await Promise.all([remoteFor(env, forkName(b.app, b.task, b.agent), "read", 300), remoteFor(env, b.app, "write", 300)]);
+		const branch = candidateBranch(b.task, b.agent);
+		const promoted = await promote({ source, target, targetRef: `refs/heads/${branch}` });
+		return json({ ...promoted, branch, previewUrl: previewUrl(env, b.worker ?? b.app, branch), ms: Date.now() - t0 });
 	}
-	await env.ARTIFACTS.create(env.RECORD_REPO, { description: "Steward decision record: playbooks, decisions, checks, grants", setDefaultBranch: "main" });
-	return true;
+	return json({ error: "not found" }, 404);
 }
 
 export default {
-	async fetch(request: Request, env: Env): Promise<Response> {
+	async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
 		const url = new URL(request.url);
-		try {
-			if (url.pathname === "/api/health") return json({ ok: true, service: "steward" });
-			if (!url.pathname.startsWith("/api/")) return new Response("Steward", { status: 200 });
-			if (!authorized(request, env)) return json({ error: "unauthorized" }, 401);
-
-			// Spike: give an agent its own fork of the app plus a write token for that fork only.
-			if (request.method === "POST" && url.pathname === "/api/spike/fork") {
-				const { app, task, agent, ttl } = await body<{ app: string; task: string; agent: string; ttl?: number }>(request);
-				const t0 = Date.now();
-				const fork = await ensureFork(env, app, task, agent);
-				const remote = await remoteFor(env, fork.name, "write", ttl ?? 3600);
-				return json({ fork: fork.name, created: fork.created, remote: remote.url, token: remote.token, expiresAt: remote.expiresAt, ms: Date.now() - t0 });
+		if (url.pathname.startsWith("/api/")) {
+			try {
+				return (await spike(request, env, url.pathname)) ?? (await handleApi(request, env, ctx));
+			} catch (e) {
+				console.error("unhandled", url.pathname, (e as Error).message);
+				return json({ error: (e as Error).message }, 500);
 			}
+		}
+		return env.ASSETS.fetch(request);
+	},
 
-			// Spike: copy the agent's latest commit to cand/<task>/<agent> on the app repo, which Workers Builds previews.
-			if (request.method === "POST" && url.pathname === "/api/spike/promote") {
-				const { app, task, agent, worker } = await body<{ app: string; task: string; agent: string; worker?: string }>(request);
-				const t0 = Date.now();
-				const [source, target] = await Promise.all([remoteFor(env, forkName(app, task, agent), "read", 300), remoteFor(env, app, "write", 300)]);
-				const branch = candidateBranch(task, agent);
-				const promoted = await promote({ source, target, targetRef: `refs/heads/${branch}` });
-				return json({ ...promoted, branch, previewUrl: previewUrl(env, worker ?? app, branch), ms: Date.now() - t0 });
+	/** Every 5 minutes: close forks past their wall-clock budget. Mondays 04:00 UTC: the weekly check of every path. */
+	async scheduled(controller: ScheduledController, env: Env, ctx: ExecutionContext) {
+		const board = boardFor(env);
+		if (controller.cron === "0 4 * * 1") {
+			const project = await loadProject(env, true);
+			for (const pb of Object.values(project.playbooks)) {
+				ctx.waitUntil(
+					runCheck(new RecordStore(env, env.RECORD_REPO), pb.path, env)
+						.then((o) => board.note("check", `Weekly check ${pb.path}: ${o.report.pass ? "pass" : "fail"}, ${o.report.misses} of ${o.report.judged} differ; auto-merge ${o.autoMerge}`, { data: { path: pb.path, autoMerge: o.autoMerge } }))
+						.catch((e) => console.error("weekly check", pb.path, (e as Error).message)),
+				);
 			}
-
-			// Seed the demo record (playbooks, thresholds and the synthetic history) into the record repo.
-			if (request.method === "POST" && url.pathname === "/api/admin/seed-record") {
-				const { reset } = await body<{ reset?: boolean }>(request).catch(() => ({ reset: false }));
-				const created = await ensureRecordRepo(env);
-				const store = new RecordStore(env, env.RECORD_REPO);
-				const files = demoRecordFiles();
-				const written = await store.update(["steward.yaml"], (snap) => {
-					if (snap.files["steward.yaml"] && !reset) return null;
-					return { files, message: "Seed the demo record: playbooks, thresholds, synthetic history\n\nThe past decisions in this commit are synthetic (synthetic: true)." };
-				});
-				return json({ repo: env.RECORD_REPO, created, seeded: !!written, commit: written?.commit ?? null, files: files.length });
-			}
-
-			// Run the check for one path now: replay the judge against the steward, then grant or suspend auto-merge.
-			const check = url.pathname.match(/^\/api\/check\/([a-z0-9._-]+)$/);
-			if (request.method === "POST" && check) {
-				const store = new RecordStore(env, env.RECORD_REPO);
-				const t0 = Date.now();
-				const outcome = await runCheck(store, check[1]!, env);
-				const { detail, ...summary } = outcome.report;
-				return json({ ...outcome, report: summary, rows: detail.map((d) => ({ id: d.id, expected: d.expected, got: d.got, p: d.probability, miss: d.miss })), ms: Date.now() - t0 });
-			}
-
-			// Read one file of the record (for debugging and the UI).
-			if (request.method === "GET" && url.pathname === "/api/record/file") {
-				const path = url.searchParams.get("path");
-				if (!path) return json({ error: "path is required" }, 400);
-				const text = await new RecordStore(env, env.RECORD_REPO).text(path, url.searchParams.get("ref") ?? undefined);
-				return text === null ? json({ error: "not found" }, 404) : new Response(text, { headers: { "content-type": "text/plain; charset=utf-8" } });
-			}
-
-			return json({ error: "not found" }, 404);
-		} catch (e) {
-			const err = e as Error & { status?: number; code?: string };
-			console.error("request failed", url.pathname, err.code ?? "", err.message, err.stack);
-			return json({ error: err.message, code: err.code }, err.status ?? 500);
+			return;
+		}
+		for (const late of await board.sweepBudgets()) {
+			ctx.waitUntil(closeFork(env, late.fork).then(() => maybeDecide(env, late.decision)));
 		}
 	},
 } satisfies ExportedHandler<Env>;
