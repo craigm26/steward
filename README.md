@@ -6,12 +6,16 @@ Code is now cheap and judgment is not, so the core object here is the decision, 
 
 Live demo: [steward.craigm26.workers.dev](https://steward.craigm26.workers.dev). Anyone can watch; changing anything needs the steward key.
 
+![The card for decision d-t2: Clef, the judge, proposed claude-code's change and named its rule; the referee objected to each candidate; Dana shipped GLM's instead, and her reason is in the record](docs/img/card.png)
+
 | The question | Steward's answer |
 | --- | --- |
 | How do agents know what others are working on? | A claims board shows who holds which files. |
 | What happens when changes conflict? | Overlapping claims become rival candidates in one decision. |
 | How do you review everything agents produce? | A mechanical gate checks all of it; the steward only makes taste calls. |
 | How do you keep track of why a change was made? | Every merge writes a ledger entry, and why-blame reads it back for any line. |
+
+![The claims board for the same task: seven agents, six on Workers AI models and Claude Code from outside, all claiming the rules file, so all seven are rivals in one decision](docs/img/board.png)
 
 ## How it works
 
