@@ -1,6 +1,6 @@
 # Recording the demo
 
-The video runs about 8.5 minutes against the 5 to 10 minute limit. Record each beat on its own, the day it works, so the last two days are editing. Reset between takes:
+The rendered explainer (5:34) is built from a recorded run; the end of this page says how. To record the demo live instead, it runs about 8.5 minutes against the 5 to 10 minute limit. Record each beat on its own, the day it works, so the last two days are editing. Reset between takes:
 
 ```sh
 curl -X POST "$STEWARD_URL/api/admin/reset-demo" -H "authorization: Bearer $STEWARD_ADMIN_KEY"

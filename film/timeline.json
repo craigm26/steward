@@ -62,91 +62,325 @@
       "scene": "problem",
       "text": "Agents can now write more code in a day than a team can read in a week.",
       "start": 1.2,
-      "end": 5.48
+      "end": 5.48,
+      "marks": [
+        [
+          0,
+          0.24
+        ],
+        [
+          71,
+          4.01
+        ]
+      ]
     },
     {
       "scene": "problem",
       "text": "Writing the change is no longer the hard part. Deciding which change ships is.",
       "start": 6.08,
-      "end": 10.6
+      "end": 10.6,
+      "marks": [
+        [
+          0,
+          0.22
+        ],
+        [
+          47,
+          2.65
+        ],
+        [
+          78,
+          4.36
+        ]
+      ]
     },
     {
       "scene": "title",
       "text": "This is Steward. It turns the pull request into a decision.",
       "start": 12.2,
-      "end": 16.08
+      "end": 16.08,
+      "marks": [
+        [
+          0,
+          0.2
+        ],
+        [
+          17,
+          1.53
+        ],
+        [
+          59,
+          3.71
+        ]
+      ]
     },
     {
       "scene": "title",
       "text": "Agents race in their own forks, a judge proposes one candidate, and a person, the steward, makes the call.",
       "start": 16.68,
-      "end": 23.88
+      "end": 23.88,
+      "marks": [
+        [
+          0,
+          0.25
+        ],
+        [
+          32,
+          2.53
+        ],
+        [
+          64,
+          4.57
+        ],
+        [
+          78,
+          5.49
+        ],
+        [
+          91,
+          6.38
+        ],
+        [
+          106,
+          7.16
+        ]
+      ]
     },
     {
       "scene": "questions",
       "text": "Cloudflare asked four questions about the next Git platform.",
       "start": 25.48,
-      "end": 29.4
+      "end": 29.4,
+      "marks": [
+        [
+          0,
+          0.29
+        ],
+        [
+          60,
+          3.69
+        ]
+      ]
     },
     {
       "scene": "questions",
       "text": "How do agents know what others are working on? Steward keeps a claims board.",
       "start": 30,
-      "end": 34.8
+      "end": 34.8,
+      "marks": [
+        [
+          0,
+          0.32
+        ],
+        [
+          47,
+          3.08
+        ],
+        [
+          76,
+          4.59
+        ]
+      ]
     },
     {
       "scene": "questions",
       "text": "What happens when changes conflict? Overlapping claims become rivals in one decision.",
       "start": 35.4,
-      "end": 41.04
+      "end": 41.04,
+      "marks": [
+        [
+          0,
+          0.27
+        ],
+        [
+          36,
+          2.75
+        ],
+        [
+          85,
+          5.39
+        ]
+      ]
     },
     {
       "scene": "questions",
       "text": "How do you review everything agents produce? A mechanical gate checks all of it, so the steward only makes taste calls.",
       "start": 41.64,
-      "end": 48.32
+      "end": 48.32,
+      "marks": [
+        [
+          0,
+          0.31
+        ],
+        [
+          45,
+          2.88
+        ],
+        [
+          81,
+          4.67
+        ],
+        [
+          119,
+          6.4
+        ]
+      ]
     },
     {
       "scene": "questions",
       "text": "And how do you keep track of why a change was made? Every merge writes a ledger entry, and any line traces back to one.",
       "start": 48.92,
-      "end": 55.64
+      "end": 55.64,
+      "marks": [
+        [
+          0,
+          0.32
+        ],
+        [
+          52,
+          3.22
+        ],
+        [
+          119,
+          6.58
+        ]
+      ]
     },
     {
       "scene": "claims",
       "text": "Here is a real run, for a fictional company: Larkspur Garden Co., paying its suppliers.",
       "start": 57.24,
-      "end": 63.2
+      "end": 63.2,
+      "marks": [
+        [
+          0,
+          0.34
+        ],
+        [
+          20,
+          1.68
+        ],
+        [
+          45,
+          3.16
+        ],
+        [
+          66,
+          4.74
+        ],
+        [
+          87,
+          5.82
+        ]
+      ]
     },
     {
       "scene": "claims",
       "text": "Dana, the steward, opens a task: hold any invoice with payment terms longer than sixty days.",
       "start": 63.8,
-      "end": 69.84
+      "end": 69.84,
+      "marks": [
+        [
+          0,
+          0.34
+        ],
+        [
+          33,
+          2.7
+        ],
+        [
+          92,
+          5.97
+        ]
+      ]
     },
     {
       "scene": "claims",
       "text": "Six agents take it, each running a different model on Workers AI.",
       "start": 70.44,
-      "end": 74.52
+      "end": 74.52,
+      "marks": [
+        [
+          0,
+          0.22
+        ],
+        [
+          20,
+          1.75
+        ],
+        [
+          65,
+          4.03
+        ]
+      ]
     },
     {
       "scene": "claims",
       "text": "Each claims the files it will touch. Steward forks the app for every agent in Cloudflare Artifacts, and gives each a token for its own fork only. No agent can push to the app.",
       "start": 75.12,
-      "end": 86.28
+      "end": 86.28,
+      "marks": [
+        [
+          0,
+          0.26
+        ],
+        [
+          37,
+          2.77
+        ],
+        [
+          100,
+          6.24
+        ],
+        [
+          146,
+          9.46
+        ],
+        [
+          175,
+          10.95
+        ]
+      ]
     },
     {
       "scene": "claims",
       "text": "Any agent that speaks HTTP and git can join the same way. The board updates live for everyone watching, from the same Durable Object that keeps the claims.",
       "start": 86.88,
-      "end": 96.28
+      "end": 96.28,
+      "marks": [
+        [
+          0,
+          0.29
+        ],
+        [
+          58,
+          4.45
+        ],
+        [
+          104,
+          6.86
+        ],
+        [
+          155,
+          9.04
+        ]
+      ]
     },
     {
       "scene": "claims",
       "text": "All six claimed the rules file, so all six are rivals in one decision.",
       "start": 96.88,
-      "end": 101.4
+      "end": 101.4,
+      "marks": [
+        [
+          0,
+          0.23
+        ],
+        [
+          70,
+          4.28
+        ]
+      ]
     },
     {
       "scene": "claims",
@@ -158,25 +392,109 @@
       "scene": "gate",
       "text": "Every push starts a Workflow, straight from the Artifacts event.",
       "start": 106.6,
-      "end": 110.28
+      "end": 110.28,
+      "marks": [
+        [
+          0,
+          0.26
+        ],
+        [
+          30,
+          1.87
+        ],
+        [
+          64,
+          3.57
+        ]
+      ]
     },
     {
       "scene": "gate",
       "text": "Steward copies the commit to a candidate branch. A build runs the tests and publishes a Worker Preview of exactly that commit, and the gate probes the Preview with the task's checks.",
       "start": 110.88,
-      "end": 121.56
+      "end": 121.56,
+      "marks": [
+        [
+          0,
+          0.24
+        ],
+        [
+          49,
+          3.32
+        ],
+        [
+          127,
+          7.93
+        ],
+        [
+          182,
+          10.66
+        ]
+      ]
     },
     {
       "scene": "gate",
       "text": "Gemma said it was done, but its change broke an existing test. It was bounced before anyone saw it. It read why, fixed the test, and passed.",
       "start": 122.16,
-      "end": 132.16
+      "end": 132.16,
+      "marks": [
+        [
+          0,
+          0.25
+        ],
+        [
+          24,
+          1.7
+        ],
+        [
+          63,
+          4.56
+        ],
+        [
+          100,
+          7
+        ],
+        [
+          113,
+          8.21
+        ],
+        [
+          129,
+          9.26
+        ],
+        [
+          140,
+          9.87
+        ]
+      ]
     },
     {
       "scene": "gate",
       "text": "Two agents had claimed only the rules file. They broke the same test, could not touch it, and stayed out.",
       "start": 132.76,
-      "end": 139.44
+      "end": 139.44,
+      "marks": [
+        [
+          0,
+          0.21
+        ],
+        [
+          44,
+          3.33
+        ],
+        [
+          70,
+          4.93
+        ],
+        [
+          90,
+          5.91
+        ],
+        [
+          105,
+          6.58
+        ]
+      ]
     },
     {
       "scene": "gate",
@@ -188,19 +506,77 @@
       "scene": "gate",
       "text": "Every fork also has a budget in minutes and tokens, and every agent commits its plan with each push, so a stopped agent resumes from its last commit.",
       "start": 142.04,
-      "end": 150.96
+      "end": 150.96,
+      "marks": [
+        [
+          0,
+          0.24
+        ],
+        [
+          52,
+          3.37
+        ],
+        [
+          101,
+          6.23
+        ],
+        [
+          149,
+          8.67
+        ]
+      ]
     },
     {
       "scene": "card",
       "text": "When every rival has settled, the judge proposes one and names the rule that decided it. Here it picked Kimi: the smallest change.",
       "start": 152.56,
-      "end": 160.56
+      "end": 160.56,
+      "marks": [
+        [
+          0,
+          0.4
+        ],
+        [
+          30,
+          1.82
+        ],
+        [
+          89,
+          5.43
+        ],
+        [
+          110,
+          6.88
+        ],
+        [
+          130,
+          7.99
+        ]
+      ]
     },
     {
       "scene": "card",
       "text": "A referee, another model, attacks every candidate and posts its strongest objection. On an earlier run it caught a wrong reason code that every check had passed.",
       "start": 161.16,
-      "end": 171.84
+      "end": 171.84,
+      "marks": [
+        [
+          0,
+          0.24
+        ],
+        [
+          26,
+          2.24
+        ],
+        [
+          85,
+          6.2
+        ],
+        [
+          161,
+          10.57
+        ]
+      ]
     },
     {
       "scene": "card",
@@ -212,25 +588,97 @@
       "scene": "card",
       "text": "The card puts the evidence first: four live Previews side by side, the checks, the diff, and the agent's own words last.",
       "start": 174.94,
-      "end": 183.62
+      "end": 183.62,
+      "marks": [
+        [
+          0,
+          0.28
+        ],
+        [
+          34,
+          2.54
+        ],
+        [
+          67,
+          5.25
+        ],
+        [
+          79,
+          5.72
+        ],
+        [
+          89,
+          6.77
+        ],
+        [
+          120,
+          8.38
+        ]
+      ]
     },
     {
       "scene": "card",
       "text": "Dana disagrees. GLM's hold message tells the clerk the actual limit, and it tests both sides.",
       "start": 184.22,
-      "end": 190.859
+      "end": 190.859,
+      "marks": [
+        [
+          0,
+          0.28
+        ],
+        [
+          16,
+          1.67
+        ],
+        [
+          69,
+          5.1
+        ],
+        [
+          93,
+          6.56
+        ]
+      ]
     },
     {
       "scene": "card",
       "text": "Shipping a different candidate takes one click and a reason, and the reason goes into the record.",
       "start": 191.459,
-      "end": 197.419
+      "end": 197.419,
+      "marks": [
+        [
+          0,
+          0.18
+        ],
+        [
+          61,
+          4
+        ],
+        [
+          97,
+          5.73
+        ]
+      ]
     },
     {
       "scene": "card",
       "text": "It merges as one commit on main, carrying the decision's id.",
       "start": 198.019,
-      "end": 202.339
+      "end": 202.339,
+      "marks": [
+        [
+          0,
+          0.31
+        ],
+        [
+          33,
+          2.81
+        ],
+        [
+          60,
+          4.16
+        ]
+      ]
     },
     {
       "scene": "card",
@@ -242,55 +690,225 @@
       "scene": "why",
       "text": "Every merge is one commit on main, so every line traces back to one decision.",
       "start": 207.039,
-      "end": 212.159
+      "end": 212.159,
+      "marks": [
+        [
+          0,
+          0.22
+        ],
+        [
+          35,
+          2.59
+        ],
+        [
+          77,
+          4.9
+        ]
+      ]
     },
     {
       "scene": "why",
       "text": "Click a line, and Steward shows the task, the rivals it beat, the judge's pick, the objection, and who decided, and why.",
       "start": 212.759,
-      "end": 221.679
+      "end": 221.679,
+      "marks": [
+        [
+          0,
+          0.33
+        ],
+        [
+          14,
+          1.36
+        ],
+        [
+          42,
+          3.35
+        ],
+        [
+          62,
+          4.64
+        ],
+        [
+          80,
+          5.86
+        ],
+        [
+          95,
+          7.08
+        ],
+        [
+          112,
+          8.35
+        ],
+        [
+          120,
+          8.74
+        ]
+      ]
     },
     {
       "scene": "check",
       "text": "Auto-merge is earned, path by path. Every week the judge is replayed on the steward's past decisions. Most of that history is made up for this demo, and labeled so.",
       "start": 223.279,
-      "end": 234.399
+      "end": 234.399,
+      "marks": [
+        [
+          0,
+          0.18
+        ],
+        [
+          22,
+          1.89
+        ],
+        [
+          36,
+          2.59
+        ],
+        [
+          102,
+          7.56
+        ],
+        [
+          149,
+          10.18
+        ],
+        [
+          164,
+          10.99
+        ]
+      ]
     },
     {
       "scene": "check",
       "text": "On payment rules, Dana's overrule just now counts against the judge, so that path stays with her.",
       "start": 234.999,
-      "end": 241.119
+      "end": 241.119,
+      "marks": [
+        [
+          0,
+          0.25
+        ],
+        [
+          18,
+          1.35
+        ],
+        [
+          69,
+          4.5
+        ],
+        [
+          97,
+          5.9
+        ]
+      ]
     },
     {
       "scene": "check",
       "text": "On the queue page, she overruled it three times out of eight, so that path lost auto-merge.",
       "start": 241.719,
-      "end": 247.359
+      "end": 247.359,
+      "marks": [
+        [
+          0,
+          0.23
+        ],
+        [
+          19,
+          2.25
+        ],
+        [
+          62,
+          3.86
+        ],
+        [
+          91,
+          5.6
+        ]
+      ]
     },
     {
       "scene": "check",
       "text": "On translations, it matched her every time, so that path earned it. Even there, one decision in ten still goes to a person.",
       "start": 247.959,
-      "end": 256.359
+      "end": 256.359,
+      "marks": [
+        [
+          0,
+          0.25
+        ],
+        [
+          44,
+          2.88
+        ],
+        [
+          68,
+          4.77
+        ],
+        [
+          80,
+          5.6
+        ],
+        [
+          123,
+          8.18
+        ]
+      ]
     },
     {
       "scene": "check",
       "text": "And between checks, an overrule of a decision the judge would have merged alone stops that path's auto-merge at once.",
       "start": 256.959,
-      "end": 263.599
+      "end": 263.599,
+      "marks": [
+        [
+          0,
+          0.4
+        ],
+        [
+          117,
+          6.58
+        ]
+      ]
     },
     {
       "scene": "scale",
       "text": "Now at scale: one hundred and twenty scripted agents on twenty translation tasks.",
       "start": 265.199,
-      "end": 270.079
+      "end": 270.079,
+      "marks": [
+        [
+          0,
+          0.24
+        ],
+        [
+          14,
+          1.28
+        ],
+        [
+          81,
+          4.74
+        ]
+      ]
     },
     {
       "scene": "scale",
       "text": "Each translation is data, so the gate reads the file at the candidate's commit instead of building a Preview.",
       "start": 270.679,
-      "end": 277.319
+      "end": 277.319,
+      "marks": [
+        [
+          0,
+          0.27
+        ],
+        [
+          26,
+          2.42
+        ],
+        [
+          109,
+          6.38
+        ]
+      ]
     },
     {
       "scene": "scale",
@@ -302,37 +920,157 @@
       "scene": "scale",
       "text": "Eighty broken files bounced at the gate. The judge merged sixteen decisions on its own and sent four to the steward, in about two minutes.",
       "start": 280.419,
-      "end": 288.499
+      "end": 288.499,
+      "marks": [
+        [
+          0,
+          0.26
+        ],
+        [
+          41,
+          2.66
+        ],
+        [
+          117,
+          6.85
+        ],
+        [
+          138,
+          7.97
+        ]
+      ]
     },
     {
       "scene": "scale",
       "text": "These agents are scripted, so this shows throughput, not model quality.",
       "start": 289.099,
-      "end": 293.939
+      "end": 293.939,
+      "marks": [
+        [
+          0,
+          0.27
+        ],
+        [
+          27,
+          2.02
+        ],
+        [
+          53,
+          3.55
+        ],
+        [
+          71,
+          4.46
+        ]
+      ]
     },
     {
       "scene": "stack",
       "text": "It is all Cloudflare. Artifacts holds the app, every fork, and the decision record.",
       "start": 295.539,
-      "end": 301.739
+      "end": 301.739,
+      "marks": [
+        [
+          0,
+          0.28
+        ],
+        [
+          22,
+          2.21
+        ],
+        [
+          47,
+          3.12
+        ],
+        [
+          59,
+          4.51
+        ],
+        [
+          83,
+          5.75
+        ]
+      ]
     },
     {
       "scene": "stack",
       "text": "A Durable Object runs the board. Workflows run the gate and the decision. Workers AI runs the agents and the referee, and Worker Previews show each candidate.",
       "start": 302.339,
-      "end": 312.659
+      "end": 312.659,
+      "marks": [
+        [
+          0,
+          0.28
+        ],
+        [
+          33,
+          2.65
+        ],
+        [
+          74,
+          5.11
+        ],
+        [
+          118,
+          8.3
+        ],
+        [
+          158,
+          10.06
+        ]
+      ]
     },
     {
       "scene": "close",
       "text": "Steward deploys to your own account, with your repositories kept in the United States or the European Union. The code is open source.",
       "start": 314.259,
-      "end": 322.499
+      "end": 322.499,
+      "marks": [
+        [
+          0,
+          0.19
+        ],
+        [
+          37,
+          2.45
+        ],
+        [
+          109,
+          6.83
+        ],
+        [
+          133,
+          7.95
+        ]
+      ]
     },
     {
       "scene": "close",
       "text": "Code is cheap now. Judgment is not. With Steward, every merge records who made the call, and why.",
       "start": 323.099,
-      "end": 329.699
+      "end": 329.699,
+      "marks": [
+        [
+          0,
+          0.23
+        ],
+        [
+          19,
+          1.76
+        ],
+        [
+          36,
+          3.44
+        ],
+        [
+          89,
+          6.07
+        ],
+        [
+          97,
+          6.56
+        ]
+      ]
     },
     {
       "scene": "close",

@@ -77,6 +77,8 @@ for (const [name, f] of [["paths-before", "paths-before-checks.json"], ["paths-r
 }
 // The scale run.
 for (const s of [548, 556, 566, 576, 586, 596, 606, 616, 626, 640, 660, 999]) boardShot(`scale-${s}`, s, "l-fr");
+// What a visitor arriving from a link sees first (not in the film; a check on the visitor strip).
+shots.push({ name: "visitor", hash: "#/board/t2", fx: fixtures({ "/api/whoami": JSON.stringify({ kind: "public" }), "/api/board": boardAt(999), "/api/paths": pathsNear(999) }), post: "" });
 // The ledger at the end, tall enough to reach Dana's two decisions under the judge's sixteen.
 shots.push({ name: "ledger", h: 1500, hash: "#/ledger", fx: fixtures({ "/api/board": boardAt(660), "/api/paths": read("paths-end.json") }), post: "" });
 

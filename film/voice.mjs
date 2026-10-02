@@ -54,6 +54,78 @@ function own(name) {
 	return null;
 }
 
+/** Where the voice pauses inside a line: [start, end] seconds from the line's start, at least 0.12 s under an eighth
+ * of the line's own speaking level (so a person's recording with room noise works too), plus the silence before the
+ * first word and after the last. */
+function pauses(samples) {
+	const win = RATE / 100; // 10 ms
+	const rms = [];
+	for (let i = 0; (i + 1) * win * 2 <= samples.length; i++) {
+		let sum = 0;
+		for (let j = 0; j < win; j++) {
+			const v = samples.readInt16LE((i * win + j) * 2);
+			sum += v * v;
+		}
+		rms.push(Math.sqrt(sum / win));
+	}
+	const loud = [...rms].sort((a, b) => a - b)[Math.floor(rms.length * 0.9)] ?? 0;
+	const quiet = rms.map((r) => r < Math.max(150, loud * 0.12));
+	// A blip under 40 ms (a breath, a click, a soft consonant) does not break a pause or start the speech.
+	for (let i = 0; i < quiet.length; ) {
+		let j = i;
+		while (j < quiet.length && quiet[j] === quiet[i]) j++;
+		if (!quiet[i] && j - i < 4 && (i === 0 || quiet[i - 1]) && (j === quiet.length || quiet[j])) quiet.fill(true, i, j);
+		i = j;
+	}
+	const lead = quiet.indexOf(false);
+	const trail = quiet.length - 1 - quiet.lastIndexOf(false);
+	const inner = [];
+	for (let i = lead; i < quiet.length - trail; ) {
+		if (!quiet[i]) {
+			i++;
+			continue;
+		}
+		let j = i;
+		while (j < quiet.length - trail && quiet[j]) j++;
+		if (j - i >= 12) inner.push([i / 100, j / 100]);
+		i = j;
+	}
+	return { lead: Math.max(0, lead) / 100, trail: Math.max(0, trail) / 100, inner };
+}
+
+/** Marks [character, seconds from the line's start] tying the text to the voice: each pause is matched to the
+ * punctuation it follows (an alignment that may leave commas without a pause, or a pause without a comma), so a word's
+ * place in the text maps to when it is said, by characters between marks. */
+function marks(text, dur, p) {
+	const speak = [p.lead, dur - p.trail];
+	const B = [...text.matchAll(/[.,;:?!]["')]?\s+/g)].map((m) => ({ at: m.index + m[0].length, strong: /[.?!;:]/.test(m[0][0]) }));
+	const est = (b) => speak[0] + ((speak[1] - speak[0]) * b.at) / text.length;
+	const G = p.inner;
+	const INF = 1e9;
+	const cost = Array.from({ length: B.length + 1 }, () => Array(G.length + 1).fill(INF));
+	const move = Array.from({ length: B.length + 1 }, () => Array(G.length + 1).fill(""));
+	cost[0][0] = 0;
+	for (let i = 0; i <= B.length; i++)
+		for (let j = 0; j <= G.length; j++) {
+			if (cost[i][j] === INF) continue;
+			const c = cost[i][j];
+			if (i < B.length && c + (B[i].strong ? 0.9 : 0.35) < cost[i + 1][j]) [cost[i + 1][j], move[i + 1][j]] = [c + (B[i].strong ? 0.9 : 0.35), "b"];
+			if (j < G.length && c + 0.9 < cost[i][j + 1]) [cost[i][j + 1], move[i][j + 1]] = [c + 0.9, "g"];
+			if (i < B.length && j < G.length) {
+				const d = Math.abs(est(B[i]) - (G[j][0] + G[j][1]) / 2);
+				if (d < 1.6 && c + d < cost[i + 1][j + 1]) [cost[i + 1][j + 1], move[i + 1][j + 1]] = [c + d, "m"];
+			}
+		}
+	const out = [];
+	for (let i = B.length, j = G.length; i > 0 || j > 0; ) {
+		const m = move[i][j];
+		if (m === "m") out.unshift([B[i - 1].at, +G[j - 1][1].toFixed(3)]);
+		if (m === "m" || m === "b") i--;
+		if (m === "m" || m === "g") j--;
+	}
+	return [[0, +speak[0].toFixed(3)], ...out, [text.length, +speak[1].toFixed(3)]];
+}
+
 if (process.argv.includes("--list")) {
 	for (const scene of script.scenes) scene.lines.filter((l) => typeof l === "string").forEach((l, i) => console.log(`${scene.id}-${i + 1}  ${l}`));
 	process.exit(0);
@@ -102,7 +174,7 @@ for (const [si, scene] of script.scenes.entries()) {
 		const samples = own(name) ?? (await speak(text));
 		const a = t;
 		push(samples);
-		timeline.lines.push({ scene: scene.id, text, start: +a.toFixed(3), end: +t.toFixed(3) });
+		timeline.lines.push({ scene: scene.id, text, start: +a.toFixed(3), end: +t.toFixed(3), marks: marks(text, t - a, pauses(samples)) });
 		if (li < scene.lines.length - 1) push(silence(GAP_LINE));
 	}
 	const last = si === script.scenes.length - 1;

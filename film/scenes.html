@@ -92,13 +92,20 @@ const S = (id) => T.scenes.find((s) => s.id === id);
 const voiced = (id) => T.lines.filter((l) => l.scene === id && !l.hold);
 const V = (id, i) => voiced(id)[i];
 const H = (id, i = 0) => T.lines.filter((l) => l.scene === id && l.hold)[i];
-/** A moment inside voiced line i of a scene: a fraction of it, or where a phrase is spoken (by its place in the text). */
+/** When character k of a line is spoken: voice.mjs ties the line's pauses to its punctuation (marks), and between two
+ * marks the time goes by characters. */
+const charTime = (l, k) => {
+	const m = l.marks ?? [[0, 0], [l.text.length, l.end - l.start]];
+	for (let i = 1; i < m.length; i++) if (k <= m[i][0]) return l.start + m[i - 1][1] + ((m[i][1] - m[i - 1][1]) * (k - m[i - 1][0])) / Math.max(1, m[i][0] - m[i - 1][0]);
+	return l.start + m[m.length - 1][1];
+};
+/** A moment inside voiced line i of a scene: a fraction of it, or when a phrase in it is spoken. */
 const at = (id, i, f = 0) => { const l = V(id, i); return l.start + (l.end - l.start) * f; };
 const atw = (id, i, phrase, off = 0) => {
 	const l = V(id, i);
 	const k = l.text.indexOf(phrase);
 	if (k < 0) throw new Error(`"${phrase}" is not in ${id} line ${i}`);
-	return l.start + (l.end - l.start) * (k / l.text.length) + off;
+	return charTime(l, k) + off;
 };
 const el = (tag, cls, html, parent) => { const e = document.createElement(tag); if (cls) e.className = cls; if (html !== undefined) e.innerHTML = html; (parent ?? document.body).append(e); return e; };
 const $ = (id) => document.getElementById(id);
@@ -135,11 +142,11 @@ function splitCaption(text, max = 84) {
 }
 for (const l of T.lines) {
 	if (l.hold) continue;
+	// Each part of a line comes up as its first word is spoken (just before, so the eye is there first).
 	const parts = splitCaption(l.text);
-	const weight = (p) => p.length + 8;
-	const total = parts.reduce((a, p) => a + weight(p), 0);
-	let a = l.start;
-	parts.forEach((p, i) => { const d = ((l.end - l.start) * weight(p)) / total; CHUNKS.push({ text: p, a, b: a + d, first: i === 0, last: i === parts.length - 1, line: l }); a += d; });
+	let from = 0;
+	const starts = parts.map((p) => { const k = l.text.indexOf(p.split(" ")[0], from); from = k + p.length; return k; });
+	parts.forEach((p, i) => CHUNKS.push({ text: p, a: i === 0 ? l.start : charTime(l, starts[i]) - 0.08, b: i === parts.length - 1 ? l.end : charTime(l, starts[i + 1]) - 0.08, first: i === 0, last: i === parts.length - 1, line: l }));
 }
 const cap = $("cap");
 let capText = "";
@@ -165,8 +172,7 @@ function captions(t) {
 	}
 	const chosen = cards[4 * cols + 6].card;
 	window.drawProblem = (t) => {
-		const v1 = V("problem", 1);
-		const focus = span(t, v1.start + 0.4, v1.start + 1.4);
+		const focus = span(t, atw("problem", 1, "Deciding", -0.2), atw("problem", 1, "Deciding", 0.8));
 		for (const { card, order } of cards) {
 			const a = 0.5 + order * 5.8;
 			const on = span(t, a, a + 0.35);
@@ -217,7 +223,7 @@ function captions(t) {
 		head.style.opacity = span(t, S("questions").start - 0.2, S("questions").start + 0.5);
 		rows.forEach((r, i) => {
 			const l = V("questions", i + 1);
-			const ans = l.start + ((l.end - l.start) * (l.text.indexOf("?") + 1)) / l.text.length;
+			const ans = charTime(l, l.text.indexOf("?") + 2) - 0.1;
 			r.style.opacity = span(t, l.start - 0.25, l.start + 0.25);
 			r.querySelector(".a").style.opacity = span(t, ans, ans + 0.5);
 		});
@@ -294,8 +300,8 @@ function build() {
 	const k = "card";
 	chap(S(k).start, S("why").start, "The card", "is it the one to ship?");
 	key(S(k).start, "card-ready", 1.0, [800, 450]);
-	key(atw(k, 0, "the judge proposes one", 0.6), "card-ready", 1.4, [560, 330]);
-	hl(atw(k, 0, "the judge proposes one", 0.6), at(k, 0, 1) + 0.4, "card-ready", R("card-ready", ".proposal"), "brass", "The judge's pick, and the rule that decided it", "right");
+	key(atw(k, 0, "the judge proposes one", 0.6), "card-ready", 1.2, [560, 330]);
+	hl(atw(k, 0, "the judge proposes one", 0.6), at(k, 0, 1) + 0.4, "card-ready", R("card-ready", ".proposal"), "brass", "The judge's pick and rule (a rubric here)", "right");
 	hl(atw(k, 0, "Here it picked Kimi"), at(k, 0, 1) + 0.4, "card-ready", R("card-ready", "lane.tag", "kimi"), "brass");
 	key(at(k, 1, 0) + 0.3, "card-ready", 1.25, [700, 860]);
 	key(H(k, 0).end, "card-ready", 1.25, [880, 860], 10.5);
@@ -310,7 +316,7 @@ function build() {
 	key(atw(k, 2, "and the agent's own words", 0.9), "card-ready", 1.0, [800, 800], 1.3);
 	hl(atw(k, 2, "and the agent's own words", 0.6), at(k, 2, 1) + 0.5, "card-ready", union(...lanes4.map((w) => R("card-ready", "lane.words", w))), "turf", "The agent's own words, last", "above");
 	key(atw(k, 3, "GLM's hold message"), "card-ready", 1.4, [886, 740]);
-	hl(atw(k, 3, "GLM's hold message", 0.6), at(k, 3, 1) + 0.4, "card-ready", R("card-ready", "lane.words", "glm"), "turf", "Its reason states the terms", "right");
+	hl(atw(k, 3, "GLM's hold message", 0.3), at(k, 3, 1) + 0.4, "card-ready", R("card-ready", "lane.words", "glm"), "turf", "Its reason states the terms", "right");
 	hl(atw(k, 3, "and it tests both sides"), at(k, 3, 1) + 0.4, "card-ready", R("card-ready", "lane.figures", "glm"), "turf", "Two tests added", "right");
 	const ship = union(R("card-reason", "lanedetails.ship", "glm"), R("card-reason", "lanebutton", "glm"));
 	key(at(k, 4, 0), "card-reason", 1.5, [800, 940]);

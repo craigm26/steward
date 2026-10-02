@@ -36,12 +36,15 @@ function normalized() {
 	return dst;
 }
 
+/** The frames are full-range JPEGs (BT.601); the film is standard H.264, limited range and tagged BT.709, which every
+ * player and upload site reads the same way. swscale's default rounding darkens it by 2-3 levels; accurate_rnd and
+ * full_chroma_int keep it within a level of the frames. */
 function encode() {
 	mkdirSync(out, { recursive: true });
 	const mp4 = join(out, "steward-explainer.mp4");
 	const r = spawnSync(
 		"nice",
-		["ffmpeg", "-loglevel", "error", "-stats", "-y", "-framerate", String(FPS), "-i", join(frames, "%05d.jpg"), "-i", normalized(), "-c:v", "libx264", "-preset", "medium", "-crf", "18", "-pix_fmt", "yuv420p", "-g", String(FPS * 2), "-c:a", "aac", "-b:a", "160k", "-shortest", "-movflags", "+faststart", mp4],
+		["ffmpeg", "-loglevel", "error", "-stats", "-y", "-framerate", String(FPS), "-i", join(frames, "%05d.jpg"), "-i", normalized(), "-vf", "scale=in_range=pc:in_color_matrix=bt601:out_range=tv:out_color_matrix=bt709:flags=bicubic+accurate_rnd+full_chroma_int,format=yuv420p,setparams=range=tv:colorspace=bt709:color_primaries=bt709:color_trc=bt709", "-c:v", "libx264", "-preset", "medium", "-crf", "18", "-x264-params", "colorprim=bt709:transfer=bt709:colormatrix=bt709:range=tv", "-g", String(FPS * 2), "-c:a", "aac", "-b:a", "160k", "-shortest", "-movflags", "+faststart", mp4],
 		{ stdio: "inherit" },
 	);
 	if (r.status !== 0) throw new Error("ffmpeg failed");
@@ -127,7 +130,7 @@ try {
 		for (const t of arg("probe").split(",").map(Number)) {
 			await call("Runtime.evaluate", { expression: `window.render(${t})`, awaitPromise: true });
 			const r = await call("Runtime.evaluate", {
-				expression: `JSON.stringify({ imgs: [...document.querySelectorAll("#cam img")].map((i) => i.src.split("/").pop() + " " + i.style.opacity), hl: [...document.querySelectorAll("#hls .hl")].filter((e) => +e.style.opacity > 0).map((e) => [e.className, e.style.left, e.style.top, e.style.width, e.style.height, (+e.style.opacity).toFixed(2)].join(" ")), tags: [...document.querySelectorAll(".tagline")].filter((e) => +e.style.opacity > 0).map((e) => e.textContent + " @" + e.style.left + "," + e.style.top) })`,
+				expression: `JSON.stringify({ imgs: [...document.querySelectorAll("#cam img")].map((i) => i.src.split("/").pop() + " " + i.style.opacity), hl: [...document.querySelectorAll("#hls .hl")].filter((e) => +e.style.opacity > 0).map((e) => [e.className, e.style.left, e.style.top, e.style.width, e.style.height, (+e.style.opacity).toFixed(2)].join(" ")), tags: [...document.querySelectorAll(".tagline")].filter((e) => +e.style.opacity > 0).map((e) => e.textContent + " @" + e.style.left + "," + e.style.top), cap: (+document.getElementById("cap").style.opacity).toFixed(2) + " " + document.getElementById("cap").textContent })`,
 				returnByValue: true,
 			});
 			console.log(t, r.result.value);
