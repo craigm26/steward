@@ -293,6 +293,9 @@ function taskSheet(t, b) {
 			t.done?.length ? h("details", { class: "checks" }, h("summary", null, `This task's checks (${t.done.length}), on top of the path's`), checksList(t.done.map((d) => ({ name: d.name, ok: true })))) : null,
 		),
 		table,
+		state.who.kind === "admin" && t.status === "open"
+			? h("div", { class: "row", style: "margin-top:14px" }, h("button", { class: cands.length ? "quiet" : "primary", onclick: (e) => startRace(t.id, e.target) }, "Start the model agents"), h("span", { class: "small muted" }, "Six agents, each on its own Workers AI model, claim this task and race in their own forks."))
+			: null,
 		decs.length
 			? h(
 					"div",
@@ -325,6 +328,17 @@ function taskSheet(t, b) {
 				)
 			: null,
 	);
+}
+
+async function startRace(task, button) {
+	button.disabled = true;
+	try {
+		const r = await api("/api/admin/race", { task });
+		toast(`${r.lineup.length} agents are on their way: ${r.lineup.map((a) => a.agent).join(", ")}.`);
+	} catch (e) {
+		toast(e.message, true);
+		button.disabled = false;
+	}
 }
 
 async function decideNow(id) {

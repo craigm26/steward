@@ -39,7 +39,8 @@
   // Gate 1 runs as a Workflow, started by Artifacts on every push in the namespace.
   "workflows": [
     { "name": "steward-gate", "binding": "GATE", "class_name": "GateWorkflow" },
-    { "name": "steward-decide", "binding": "DECIDE", "class_name": "DecideWorkflow" }
+    { "name": "steward-decide", "binding": "DECIDE", "class_name": "DecideWorkflow" },
+    { "name": "steward-agents", "binding": "AGENTS", "class_name": "AgentWorkflow" }
   ],
   "triggers": {
     // Every 5 minutes: close forks past their budget. Mondays 04:00 UTC: the weekly check.

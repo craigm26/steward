@@ -120,3 +120,18 @@ describe("push events", () => {
 		expect(parsePush({ nothing: true })).toBeNull();
 	});
 });
+
+describe("model agents", () => {
+	test("file blocks and the summary come out of a reply, fences or not", async () => {
+		const { parseReply } = await import("../src/agents/reply");
+		const r = parseReply("Sure.\n=== FILE: src/rules.js ===\n```js\nexport const A = 1;\n```\n=== END ===\n=== FILE: test/rules.test.js ===\nimport x from 'y';\n=== END ===\nSUMMARY: Holds the bank-change invoices.\nextra");
+		expect(r.files.map((f) => f.path)).toEqual(["src/rules.js", "test/rules.test.js"]);
+		expect(r.files[0]!.content).toBe("export const A = 1;\n");
+		expect(r.summary).toBe("Holds the bank-change invoices.");
+	});
+	test("a block with no END line still counts", async () => {
+		const { parseReply } = await import("../src/agents/reply");
+		const r = parseReply("=== FILE: src/rules.js ===\nexport const B = 2;\n=== FILE: test/a.test.js ===\ntest();\nSUMMARY: done.");
+		expect(r.files.map((f) => [f.path, f.content])).toEqual([["src/rules.js", "export const B = 2;\n"], ["test/a.test.js", "test();\n"]]);
+	});
+});

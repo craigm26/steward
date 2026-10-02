@@ -15,6 +15,7 @@ import { boardFor } from "./board";
 export { ProjectBoard } from "./board";
 export { GateWorkflow } from "./gate";
 export { DecideWorkflow } from "./decide";
+export { AgentWorkflow } from "./agents/race";
 
 export interface Env extends ArtifactsEnv, JudgeEnv {
 	STEWARD_ADMIN_KEY: string;
@@ -25,6 +26,7 @@ export interface Env extends ArtifactsEnv, JudgeEnv {
 	BOARD: DurableObjectNamespace<ProjectBoard>;
 	GATE: Workflow;
 	DECIDE: Workflow;
+	AGENTS: Workflow;
 	AI: Ai;
 	ASSETS: Fetcher;
 }

@@ -84,12 +84,17 @@ export class GateWorkflow extends WorkflowEntrypoint<Env, GateParams> {
 		const diff = await step.do("diff against where it started", async () => {
 			const base = (await forkPoint(env, env.PROJECT, cand.branch)) ?? promoted.commit;
 			const d = await diffCommits(env, env.PROJECT, base, promoted.commit);
-			const outside = d.files.map((f) => f.path).filter((p) => !claim.files.includes(p) && !project.playbook.globs.some((g) => globMatch(g, p)));
+			// An agent changes only the files it claimed. A new file is fine inside its path; an existing file it did
+			// not claim is not, because another agent may hold it.
+			const outside = d.files
+				.filter((f) => !claim.files.includes(f.path))
+				.filter((f) => f.status !== "added" || !project.playbook.globs.some((g) => globMatch(g, f.path)))
+				.map((f) => f.path);
 			return { base, d, outside };
 		});
 
 		const checks: GateCheck[] = [];
-		if (diff.outside.length) checks.push({ name: "Changes stay inside the claim", ok: false, detail: `changed outside its claim and path: ${diff.outside.join(", ")}` });
+		if (diff.outside.length) checks.push({ name: "Changes stay inside the claim", ok: false, detail: `changed files it did not claim: ${diff.outside.join(", ")}` });
 		else checks.push({ name: "Changes stay inside the claim", ok: true });
 
 		// The build check: Workers Builds (or any CI) builds and tests the branch; a Preview that serves this

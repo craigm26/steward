@@ -6,8 +6,10 @@
 //
 //   node scripts/preview-runner.mjs            (needs wrangler logged in; one build at a time)
 //
-// Per candidate: clone cand/<task>/<agent> from the app repo, run `npm run build` (writes the commit, runs the
-// tests), then `wrangler preview --name <branch as a name>`. A failing build makes no Preview, which gate 1 reports.
+// Per candidate: clone cand/<task>/<agent> from the app repo; refuse it if it changed files outside its task's path;
+// run the build and tests inside a bubblewrap sandbox (no network, read-only root, home hidden, only the build folder
+// writable), because an agent's tests are code nobody has read; then `wrangler preview` (which bundles but never runs
+// the candidate's code). A failing build makes no Preview and is reported to Steward, which bounces it at once.
 import { execFileSync } from "node:child_process";
 import { mkdtempSync, readFileSync, rmSync, symlinkSync, existsSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -48,9 +50,9 @@ async function deployMain(prodUrl) {
 	const dir = mkdtempSync(join(tmpdir(), "steward-prod-"));
 	try {
 		sh("git", ["-c", `http.extraHeader=Authorization: Bearer ${token()}`, "clone", "-q", "--depth", "1", REMOTE, dir]);
-		if (existsSync(deps)) symlinkSync(deps, join(dir, "node_modules"));
 		const env = { ...process.env, WORKERS_CI: "1", WORKERS_CI_COMMIT_SHA: head, WORKERS_CI_BRANCH: "main" };
-		sh("npm", ["run", "build"], { cwd: dir, env });
+		sandboxedBuild(dir, env);
+		if (existsSync(deps)) symlinkSync(deps, join(dir, "node_modules"));
 		sh("npx", ["wrangler", "deploy"], { cwd: dir, env });
 		console.log(`  deployed main ${head.slice(0, 7)} to production in ${((Date.now() - t0) / 1000).toFixed(1)} s`);
 	} catch (e) {
@@ -59,6 +61,50 @@ async function deployMain(prodUrl) {
 		rmSync(dir, { recursive: true, force: true });
 	}
 }
+
+const HOME = process.env.HOME;
+const NODE_DIR = process.execPath.replace(/\/bin\/node$/, "");
+/** The build and tests, sandboxed: nothing but this folder is writable, and there is no network. */
+function sandboxedBuild(dir, env) {
+	const args = [
+		// Order matters: later mounts cover earlier ones, so /tmp and HOME are emptied before the build folder
+		// (which lives under /tmp) and node are bound back in.
+		"--ro-bind", "/", "/",
+		"--tmpfs", "/tmp",
+		"--tmpfs", HOME,
+		"--ro-bind", NODE_DIR, NODE_DIR,
+		"--bind", dir, dir,
+		"--dev", "/dev",
+		"--proc", "/proc",
+		"--unshare-net",
+		"--unshare-pid",
+		"--die-with-parent",
+		"--new-session",
+		"--chdir", dir,
+		"--setenv", "PATH", `${NODE_DIR}/bin:/usr/bin:/bin`,
+		"--setenv", "HOME", dir,
+		...Object.entries(env).filter(([k]) => k.startsWith("WORKERS_CI")).flatMap(([k, v]) => ["--setenv", k, v]),
+		"node", "-e", "require('child_process').execSync('node scripts/build-info.mjs && node --test', { stdio: 'inherit' })",
+	];
+	return sh("bwrap", args, { cwd: dir });
+}
+
+/** Files a candidate changed against the commit it started from (needs main fetched too). */
+function changedFiles(dir) {
+	const base = sh("git", ["merge-base", "origin/main", "HEAD"], { cwd: dir }).trim();
+	return sh("git", ["diff", "--name-only", base, "HEAD"], { cwd: dir }).split("\n").filter(Boolean);
+}
+
+const globRe = (glob) =>
+	new RegExp(
+		"^" +
+			glob
+				.split("/")
+				.map((seg) => (seg === "**" ? "(?:.*)" : seg.replace(/[.+^${}()|[\]\\]/g, "\\$&").replace(/\*/g, "[^/]*")))
+				.join("/")
+				.replace(/\/\(\?:\.\*\)$/, "(?:/.*)?") +
+			"$",
+	);
 
 async function report(commit, ok, detail) {
 	await fetch(`${vars.STEWARD_URL}/api/builds`, {
@@ -72,18 +118,25 @@ async function build(c) {
 	const t0 = Date.now();
 	const dir = mkdtempSync(join(tmpdir(), "steward-preview-"));
 	try {
-		sh("git", ["-c", `http.extraHeader=Authorization: Bearer ${token()}`, "clone", "-q", "--depth", "1", "-b", c.branch, REMOTE, dir]);
+		sh("git", ["-c", `http.extraHeader=Authorization: Bearer ${token()}`, "clone", "-q", "-b", c.branch, REMOTE, dir]);
+		sh("git", ["-c", `http.extraHeader=Authorization: Bearer ${token()}`, "fetch", "-q", "origin", "main:refs/remotes/origin/main"], { cwd: dir });
 		const head = sh("git", ["rev-parse", "HEAD"], { cwd: dir }).trim();
 		if (head !== c.commit) return console.log(`  skip ${c.id}: branch is at ${head.slice(0, 7)}, gate waits for ${c.commit.slice(0, 7)}`);
-		if (existsSync(deps) && !existsSync(join(dir, "node_modules"))) symlinkSync(deps, join(dir, "node_modules"));
+		const globs = c.globs ?? [];
+		const outside = changedFiles(dir).filter((f) => !f.startsWith(".steward/") && !globs.some((g) => globRe(g).test(f)));
+		if (outside.length) {
+			await report(c.commit, false, `changed files outside its path, so nothing was built: ${outside.join(", ")}`);
+			return console.log(`  REFUSED ${c.id} ${c.commit.slice(0, 7)}: outside its path: ${outside.join(", ")}`);
+		}
 		const env = { ...process.env, WORKERS_CI: "1", WORKERS_CI_COMMIT_SHA: c.commit, WORKERS_CI_BRANCH: c.branch };
 		try {
-			sh("npm", ["run", "build"], { cwd: dir, env });
+			sandboxedBuild(dir, env);
 		} catch (e) {
 			const why = String(e.stdout).split("\n").filter((l) => /^not ok|# fail/i.test(l.trim())).slice(0, 5).join("; ") || "npm run build exited non-zero";
 			await report(c.commit, false, `npm run build: ${why}`);
 			return console.log(`  FAIL ${c.id} ${c.commit.slice(0, 7)}: build or tests failed, no Preview: ${why}`);
 		}
+		if (existsSync(deps) && !existsSync(join(dir, "node_modules"))) symlinkSync(deps, join(dir, "node_modules"));
 		const out = JSON.parse(sh("npx", ["wrangler", "preview", "--name", previewName(c.branch), "--json"], { cwd: dir, env }));
 		console.log(`  built ${c.id} ${c.commit.slice(0, 7)} -> ${out.preview?.urls?.[0]} in ${((Date.now() - t0) / 1000).toFixed(1)} s`);
 	} finally {
@@ -97,10 +150,15 @@ for (;;) {
 	if (loops++ % 3 === 0) await deployMain(`https://${APP}.craigm26.workers.dev`).catch((e) => console.log(`  prod check failed: ${e.message}`));
 	try {
 		const board = await (await fetch(`${vars.STEWARD_URL}/api/board`)).json();
-		for (const c of board.candidates ?? []) {
-			if (c.status !== "checking" || !c.commit || built.has(c.commit)) continue;
-			built.add(c.commit);
-			await build(c);
+		const waiting = (board.candidates ?? []).filter((c) => c.status === "checking" && c.commit && !built.has(c.commit));
+		if (waiting.length) {
+			const paths = await (await fetch(`${vars.STEWARD_URL}/api/paths`)).json();
+			for (const c of waiting) {
+				built.add(c.commit);
+				const task = board.tasks.find((t) => t.id === c.task);
+				c.globs = paths.paths.find((p) => p.path === task?.path)?.globs ?? [];
+				await build(c);
+			}
 		}
 	} catch (e) {
 		console.log(`  error: ${e.message}`);
