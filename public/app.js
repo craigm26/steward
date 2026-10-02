@@ -291,7 +291,7 @@ function taskSheet(t, b) {
 								c.note ? h("div", { class: `note${c.status === "bounced" || c.status === "over-budget" ? " bad" : ""}` }, c.note) : null,
 								c.checks.length ? h("details", { class: "checks" }, h("summary", null, "Checks"), checksList(c.checks)) : null,
 							),
-							h("td", null, c.preview_url && !c.checks.some((k) => /Preview builds/.test(k.name) && !k.ok) ? h("a", { href: c.preview_url, target: "_blank", rel: "noopener" }, "Open") : h("span", { class: "faint small" }, c.status === "bounced" ? "None" : "Not yet")),
+							h("td", null, c.preview_url && c.checks.some((k) => /Preview builds/.test(k.name) && k.ok) ? h("a", { href: c.preview_url, target: "_blank", rel: "noopener" }, "Open") : h("span", { class: "faint small" }, ["claimed", "working", "checking"].includes(c.status) ? "Not yet" : "None")),
 						);
 					}),
 				),
@@ -448,7 +448,7 @@ async function viewDecision(id) {
 			h(
 				"div",
 				{ class: "frame" },
-				c.preview_url && !out ? [h("iframe", { src: c.preview_url, title: `${c.agent}'s Preview`, loading: "lazy", sandbox: "allow-same-origin" }), h("a", { class: "open", href: c.preview_url, target: "_blank", rel: "noopener" }, "Open the Preview")] : h("div", { class: "none" }, out ? "Bounced at gate 1: nobody needs to look at it." : "No Preview."),
+				c.preview_url && !out && c.checks?.some((k) => /Preview builds/.test(k.name) && k.ok) ? [h("iframe", { src: c.preview_url, title: `${c.agent}'s Preview`, loading: "lazy", sandbox: "allow-same-origin" }), h("a", { class: "open", href: c.preview_url, target: "_blank", rel: "noopener" }, "Open the Preview")] : h("div", { class: "none" }, out ? "Bounced at gate 1: nobody needs to look at it." : "This path's checks read files, so no Preview was built."),
 			),
 			h(
 				"div",

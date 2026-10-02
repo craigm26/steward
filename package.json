@@ -20,6 +20,10 @@
     "types": "wrangler types",
     "typecheck": "wrangler types >/dev/null && tsc -p tsconfig.json",
     "deploy": "wrangler deploy",
-    "spike": "node scripts/spike.mjs"
+    "spike": "node scripts/spike.mjs",
+    "test": "vitest run --pool=forks --maxWorkers=1",
+    "seed": "node scripts/seed-app.mjs",
+    "runner": "node scripts/preview-runner.mjs",
+    "watch": "node scripts/watch.mjs"
   }
 }
