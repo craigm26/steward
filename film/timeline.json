@@ -1,0 +1,345 @@
+{
+  "fps": 24,
+  "scenes": [
+    {
+      "id": "problem",
+      "start": 1.2,
+      "end": 12.2
+    },
+    {
+      "id": "title",
+      "start": 12.2,
+      "end": 25.48
+    },
+    {
+      "id": "questions",
+      "start": 25.48,
+      "end": 57.24
+    },
+    {
+      "id": "claims",
+      "start": 57.24,
+      "end": 106.6
+    },
+    {
+      "id": "gate",
+      "start": 106.6,
+      "end": 152.56
+    },
+    {
+      "id": "card",
+      "start": 152.56,
+      "end": 207.039
+    },
+    {
+      "id": "why",
+      "start": 207.039,
+      "end": 223.279
+    },
+    {
+      "id": "check",
+      "start": 223.279,
+      "end": 265.199
+    },
+    {
+      "id": "scale",
+      "start": 265.199,
+      "end": 295.539
+    },
+    {
+      "id": "stack",
+      "start": 295.539,
+      "end": 314.259
+    },
+    {
+      "id": "close",
+      "start": 314.259,
+      "end": 334.299
+    }
+  ],
+  "lines": [
+    {
+      "scene": "problem",
+      "text": "Agents can now write more code in a day than a team can read in a week.",
+      "start": 1.2,
+      "end": 5.48
+    },
+    {
+      "scene": "problem",
+      "text": "Writing the change is no longer the hard part. Deciding which change ships is.",
+      "start": 6.08,
+      "end": 10.6
+    },
+    {
+      "scene": "title",
+      "text": "This is Steward. It turns the pull request into a decision.",
+      "start": 12.2,
+      "end": 16.08
+    },
+    {
+      "scene": "title",
+      "text": "Agents race in their own forks, a judge proposes one candidate, and a person, the steward, makes the call.",
+      "start": 16.68,
+      "end": 23.88
+    },
+    {
+      "scene": "questions",
+      "text": "Cloudflare asked four questions about the next Git platform.",
+      "start": 25.48,
+      "end": 29.4
+    },
+    {
+      "scene": "questions",
+      "text": "How do agents know what others are working on? Steward keeps a claims board.",
+      "start": 30,
+      "end": 34.8
+    },
+    {
+      "scene": "questions",
+      "text": "What happens when changes conflict? Overlapping claims become rivals in one decision.",
+      "start": 35.4,
+      "end": 41.04
+    },
+    {
+      "scene": "questions",
+      "text": "How do you review everything agents produce? A mechanical gate checks all of it, so the steward only makes taste calls.",
+      "start": 41.64,
+      "end": 48.32
+    },
+    {
+      "scene": "questions",
+      "text": "And how do you keep track of why a change was made? Every merge writes a ledger entry, and any line traces back to one.",
+      "start": 48.92,
+      "end": 55.64
+    },
+    {
+      "scene": "claims",
+      "text": "Here is a real run, for a fictional company: Larkspur Garden Co., paying its suppliers.",
+      "start": 57.24,
+      "end": 63.2
+    },
+    {
+      "scene": "claims",
+      "text": "Dana, the steward, opens a task: hold any invoice with payment terms longer than sixty days.",
+      "start": 63.8,
+      "end": 69.84
+    },
+    {
+      "scene": "claims",
+      "text": "Six agents take it, each running a different model on Workers AI.",
+      "start": 70.44,
+      "end": 74.52
+    },
+    {
+      "scene": "claims",
+      "text": "Each claims the files it will touch. Steward forks the app for every agent in Cloudflare Artifacts, and gives each a token for its own fork only. No agent can push to the app.",
+      "start": 75.12,
+      "end": 86.28
+    },
+    {
+      "scene": "claims",
+      "text": "Any agent that speaks HTTP and git can join the same way. The board updates live for everyone watching, from the same Durable Object that keeps the claims.",
+      "start": 86.88,
+      "end": 96.28
+    },
+    {
+      "scene": "claims",
+      "text": "All six claimed the rules file, so all six are rivals in one decision.",
+      "start": 96.88,
+      "end": 101.4
+    },
+    {
+      "scene": "claims",
+      "hold": true,
+      "start": 102,
+      "end": 105
+    },
+    {
+      "scene": "gate",
+      "text": "Every push starts a Workflow, straight from the Artifacts event.",
+      "start": 106.6,
+      "end": 110.28
+    },
+    {
+      "scene": "gate",
+      "text": "Steward copies the commit to a candidate branch. A build runs the tests and publishes a Worker Preview of exactly that commit, and the gate probes the Preview with the task's checks.",
+      "start": 110.88,
+      "end": 121.56
+    },
+    {
+      "scene": "gate",
+      "text": "Gemma said it was done, but its change broke an existing test. It was bounced before anyone saw it. It read why, fixed the test, and passed.",
+      "start": 122.16,
+      "end": 132.16
+    },
+    {
+      "scene": "gate",
+      "text": "Two agents had claimed only the rules file. They broke the same test, could not touch it, and stayed out.",
+      "start": 132.76,
+      "end": 139.44
+    },
+    {
+      "scene": "gate",
+      "hold": true,
+      "start": 140.04,
+      "end": 142.04
+    },
+    {
+      "scene": "gate",
+      "text": "Every fork also has a budget in minutes and tokens, and every agent commits its plan with each push, so a stopped agent resumes from its last commit.",
+      "start": 142.04,
+      "end": 150.96
+    },
+    {
+      "scene": "card",
+      "text": "When every rival has settled, the judge proposes one and names the rule that decided it. Here it picked Kimi: the smallest change.",
+      "start": 152.56,
+      "end": 160.56
+    },
+    {
+      "scene": "card",
+      "text": "A referee, another model, attacks every candidate and posts its strongest objection. On an earlier run it caught a wrong reason code that every check had passed.",
+      "start": 161.16,
+      "end": 171.84
+    },
+    {
+      "scene": "card",
+      "hold": true,
+      "start": 172.44,
+      "end": 174.94
+    },
+    {
+      "scene": "card",
+      "text": "The card puts the evidence first: four live Previews side by side, the checks, the diff, and the agent's own words last.",
+      "start": 174.94,
+      "end": 183.62
+    },
+    {
+      "scene": "card",
+      "text": "Dana disagrees. GLM's hold message tells the clerk the actual limit, and it tests both sides.",
+      "start": 184.22,
+      "end": 190.859
+    },
+    {
+      "scene": "card",
+      "text": "Shipping a different candidate takes one click and a reason, and the reason goes into the record.",
+      "start": 191.459,
+      "end": 197.419
+    },
+    {
+      "scene": "card",
+      "text": "It merges as one commit on main, carrying the decision's id.",
+      "start": 198.019,
+      "end": 202.339
+    },
+    {
+      "scene": "card",
+      "hold": true,
+      "start": 202.939,
+      "end": 205.439
+    },
+    {
+      "scene": "why",
+      "text": "Every merge is one commit on main, so every line traces back to one decision.",
+      "start": 207.039,
+      "end": 212.159
+    },
+    {
+      "scene": "why",
+      "text": "Click a line, and Steward shows the task, the rivals it beat, the judge's pick, the objection, and who decided, and why.",
+      "start": 212.759,
+      "end": 221.679
+    },
+    {
+      "scene": "check",
+      "text": "Auto-merge is earned, path by path. Every week the judge is replayed on the steward's past decisions. Most of that history is made up for this demo, and labeled so.",
+      "start": 223.279,
+      "end": 234.399
+    },
+    {
+      "scene": "check",
+      "text": "On payment rules, Dana's overrule just now counts against the judge, so that path stays with her.",
+      "start": 234.999,
+      "end": 241.119
+    },
+    {
+      "scene": "check",
+      "text": "On the queue page, she overruled it three times out of eight, so that path lost auto-merge.",
+      "start": 241.719,
+      "end": 247.359
+    },
+    {
+      "scene": "check",
+      "text": "On translations, it matched her every time, so that path earned it. Even there, one decision in ten still goes to a person.",
+      "start": 247.959,
+      "end": 256.359
+    },
+    {
+      "scene": "check",
+      "text": "And between checks, an overrule of a decision the judge would have merged alone stops that path's auto-merge at once.",
+      "start": 256.959,
+      "end": 263.599
+    },
+    {
+      "scene": "scale",
+      "text": "Now at scale: one hundred and twenty scripted agents on twenty translation tasks.",
+      "start": 265.199,
+      "end": 270.079
+    },
+    {
+      "scene": "scale",
+      "text": "Each translation is data, so the gate reads the file at the candidate's commit instead of building a Preview.",
+      "start": 270.679,
+      "end": 277.319
+    },
+    {
+      "scene": "scale",
+      "hold": true,
+      "start": 277.919,
+      "end": 280.419
+    },
+    {
+      "scene": "scale",
+      "text": "Eighty broken files bounced at the gate. The judge merged sixteen decisions on its own and sent four to the steward, in about two minutes.",
+      "start": 280.419,
+      "end": 288.499
+    },
+    {
+      "scene": "scale",
+      "text": "These agents are scripted, so this shows throughput, not model quality.",
+      "start": 289.099,
+      "end": 293.939
+    },
+    {
+      "scene": "stack",
+      "text": "It is all Cloudflare. Artifacts holds the app, every fork, and the decision record.",
+      "start": 295.539,
+      "end": 301.739
+    },
+    {
+      "scene": "stack",
+      "text": "A Durable Object runs the board. Workflows run the gate and the decision. Workers AI runs the agents and the referee, and Worker Previews show each candidate.",
+      "start": 302.339,
+      "end": 312.659
+    },
+    {
+      "scene": "close",
+      "text": "Steward deploys to your own account, with your repositories kept in the United States or the European Union. The code is open source.",
+      "start": 314.259,
+      "end": 322.499
+    },
+    {
+      "scene": "close",
+      "text": "Code is cheap now. Judgment is not. With Steward, every merge records who made the call, and why.",
+      "start": 323.099,
+      "end": 329.699
+    },
+    {
+      "scene": "close",
+      "hold": true,
+      "start": 330.299,
+      "end": 331.799
+    }
+  ],
+  "duration": 334.299
+}

@@ -1,0 +1,590 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Steward: the explainer</title>
+<!-- The film, drawn as a pure function of time: render(t) places everything for second t. film/render.mjs injects the
+     narration timeline (film/timeline.json) and the element boxes of each product shot (film/shots/*.json), then steps
+     t at 24 frames a second in headless Chromium. Product footage is the real UI rendering recorded API answers
+     (film/shoot.mjs); the camera, highlights and labels sit on top. Local files only: this Pi's headless Chromium
+     cannot fetch over the network. -->
+<style>
+	@font-face { font-family: "Archivo"; src: url("../public/fonts/Archivo.ttf") format("truetype"); font-weight: 100 900; font-stretch: 62% 125%; }
+	:root { --paper: #f4f6f3; --sheet: #ffffff; --ink: #14211b; --ink-2: #4a5a52; --ink-3: #7b8a82; --rail: #dce2da; --turf: #1e5b3a; --turf-2: #e3efe7; --flag: #c1392b; --flag-2: #f8e5e2; --brass: #a27b24; --brass-2: #f5eedc; }
+	* { box-sizing: border-box; margin: 0; padding: 0; }
+	html, body { width: 1920px; height: 1080px; overflow: hidden; background: var(--paper); color: var(--ink); font-family: "Archivo", system-ui, sans-serif; font-variant-numeric: tabular-nums; }
+	.layer { position: absolute; inset: 0; opacity: 0; }
+	.mono { font-family: ui-monospace, "DejaVu Sans Mono", Menlo, monospace; }
+
+	/* footage */
+	#chapter { position: absolute; left: 240px; top: 28px; font-stretch: 70%; font-weight: 700; font-size: 44px; line-height: 56px; }
+	#chapter small { font-stretch: 100%; font-weight: 500; font-size: 26px; color: var(--ink-3); margin-left: 18px; }
+	#screen { position: absolute; left: 240px; top: 100px; width: 1440px; height: 810px; overflow: hidden; border-radius: 12px; background: #fff; box-shadow: 0 0 0 1px var(--rail), 0 18px 50px rgba(20, 33, 27, 0.16); }
+	#cam img, #hls { position: absolute; left: 0; top: 0; width: 1600px; transform-origin: 0 0; }
+	#hls { height: 900px; z-index: 5; }
+	.hl { position: absolute; border: 4px solid var(--brass); border-radius: 10px; opacity: 0; }
+	.hl.flag { border-color: var(--flag); }
+	.hl.turf { border-color: var(--turf); }
+	.tagline { position: absolute; padding: 9px 16px; border-radius: 9px; font-weight: 700; font-size: 27px; line-height: 1.2; color: #fff; background: var(--brass); white-space: nowrap; opacity: 0; box-shadow: 0 6px 18px rgba(20, 33, 27, 0.22); z-index: 8; }
+	.tagline.flag { background: var(--flag); }
+	.tagline.turf { background: var(--turf); }
+	.panel { position: absolute; background: #fff; border-radius: 14px; box-shadow: 0 0 0 1px var(--rail), 0 16px 44px rgba(20, 33, 27, 0.22); opacity: 0; z-index: 9; }
+	.chip { display: inline-block; padding: 9px 16px; border-radius: 9px; border: 3px solid var(--rail); background: #fff; font-weight: 700; font-size: 27px; color: var(--ink-3); }
+	.chip.on { border-color: var(--turf); background: var(--turf-2); color: var(--turf); }
+	.dark { position: absolute; background: var(--ink); color: #fff; border-radius: 10px; padding: 11px 18px; font-weight: 700; font-size: 27px; opacity: 0; z-index: 9; box-shadow: 0 8px 24px rgba(20, 33, 27, 0.25); }
+
+	/* captions */
+	#cap { position: absolute; left: 50%; bottom: 30px; transform: translateX(-50%); width: max-content; max-width: 1480px; padding: 14px 28px; border-radius: 12px; background: rgba(20, 33, 27, 0.92); color: #fff; font-weight: 500; font-size: 38px; line-height: 1.28; text-align: center; opacity: 0; z-index: 20; }
+
+	/* graphics */
+	.center { position: absolute; left: 0; right: 0; text-align: center; }
+	.card { position: absolute; width: 112px; height: 76px; border-radius: 9px; background: #fff; border: 2px solid var(--rail); padding: 12px 10px 8px 42px; }
+	.card .sk { position: absolute; left: 9px; top: 10px; }
+	.card i { display: block; height: 7px; border-radius: 4px; margin-bottom: 8px; background: var(--rail); }
+	.card i.a { background: #9fd1b0; } .card i.d { background: #eeb2aa; }
+	.big { font-stretch: 62%; font-weight: 800; font-size: 250px; line-height: 0.9; letter-spacing: -0.01em; }
+	.sub { font-weight: 500; font-size: 48px; color: var(--ink-2); }
+	.step { position: absolute; width: 480px; text-align: center; font-weight: 600; font-size: 36px; line-height: 1.2; opacity: 0; }
+	.step .ico { height: 120px; display: flex; align-items: center; justify-content: center; gap: 4px; margin-bottom: 20px; }
+	.arrow { position: absolute; font-size: 56px; color: var(--ink-3); opacity: 0; }
+	.qhead { position: absolute; left: 180px; top: 110px; font-stretch: 70%; font-weight: 700; font-size: 66px; }
+	.qrow { position: absolute; left: 180px; right: 180px; display: grid; grid-template-columns: 1fr 1fr; gap: 70px; align-items: center; padding: 26px 0; border-top: 2px solid var(--rail); opacity: 0; }
+	.qrow .q { font-weight: 600; font-size: 38px; line-height: 1.2; }
+	.qrow .a { font-weight: 500; font-size: 36px; line-height: 1.25; color: var(--turf); opacity: 0; }
+	.node { position: absolute; width: 320px; height: 156px; border-radius: 16px; background: #fff; border: 3px solid var(--rail); display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; opacity: 0; padding: 0 16px; }
+	.node b { font-stretch: 75%; font-weight: 700; font-size: 40px; line-height: 1.05; }
+	.node span { font-weight: 500; font-size: 25px; color: var(--ink-3); margin-top: 8px; }
+	.node.lit { border-color: var(--turf); box-shadow: 0 0 0 7px var(--turf-2); }
+	.node.lit span { color: var(--turf); font-weight: 700; }
+	.edge { position: absolute; height: 4px; background: var(--ink-3); transform-origin: 0 50%; opacity: 0; border-radius: 2px; }
+	.term { position: absolute; left: 330px; top: 270px; width: 1260px; border-radius: 16px; background: var(--ink); color: #e8eee9; padding: 36px 44px; font-size: 33px; line-height: 1.75; opacity: 0; }
+	.term .p { color: #7fbf98; }
+	.term .c { color: #9aa8a0; }
+	.pill { display: inline-block; padding: 8px 24px; border-radius: 999px; border: 3px solid var(--ink-3); color: var(--ink-2); font-weight: 700; font-size: 34px; margin-right: 16px; }
+	.pill.on { background: var(--turf); border-color: var(--turf); color: #fff; }
+</style>
+</head>
+<body>
+<div id="problem" class="layer"></div>
+<div id="title" class="layer"></div>
+<div id="questions" class="layer"></div>
+<div id="footage" class="layer">
+	<div id="chapter"></div>
+	<div id="screen"><div id="cam"></div><div id="hls"></div></div>
+	<div id="tags"></div>
+</div>
+<div id="stack" class="layer"></div>
+<div id="close" class="layer"></div>
+<div id="end" class="layer"></div>
+<div id="cap"></div>
+<script type="module">
+import { silks } from "../public/silks.js";
+
+// ---------------------------------------------------------------- the timeline kit
+const T = window.TIMELINE;
+const RECTS = window.RECTS;
+const clamp = (x, a = 0, b = 1) => Math.max(a, Math.min(b, x));
+const ease = (x) => { x = clamp(x); return x < 0.5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2; };
+const span = (t, a, b) => (b <= a ? (t >= a ? 1 : 0) : ease((t - a) / (b - a)));
+const win = (t, a, b, f = 0.4) => Math.min(span(t, a, a + f), 1 - span(t, b - f, b)); // in from a, out by b
+const lerp = (a, b, k) => a + (b - a) * k;
+const S = (id) => T.scenes.find((s) => s.id === id);
+const voiced = (id) => T.lines.filter((l) => l.scene === id && !l.hold);
+const V = (id, i) => voiced(id)[i];
+const H = (id, i = 0) => T.lines.filter((l) => l.scene === id && l.hold)[i];
+/** A moment inside voiced line i of a scene: a fraction of it, or where a phrase is spoken (by its place in the text). */
+const at = (id, i, f = 0) => { const l = V(id, i); return l.start + (l.end - l.start) * f; };
+const atw = (id, i, phrase, off = 0) => {
+	const l = V(id, i);
+	const k = l.text.indexOf(phrase);
+	if (k < 0) throw new Error(`"${phrase}" is not in ${id} line ${i}`);
+	return l.start + (l.end - l.start) * (k / l.text.length) + off;
+};
+const el = (tag, cls, html, parent) => { const e = document.createElement(tag); if (cls) e.className = cls; if (html !== undefined) e.innerHTML = html; (parent ?? document.body).append(e); return e; };
+const $ = (id) => document.getElementById(id);
+const css = (e, o) => Object.assign(e.style, o);
+const AGENTS = ["kimi", "deepseek", "glm", "qwen", "gemma", "nemotron"];
+
+/** An element box from a product shot, by key and (optionally) a piece of its text. */
+function R(shot, key, text, n = 0) {
+	const list = (RECTS[shot] ?? {})[key] ?? [];
+	const hits = text === undefined ? list : list.filter((r) => r.text.toLowerCase().includes(text.toLowerCase()));
+	const r = hits[n];
+	if (!r) throw new Error(`no ${key} "${text ?? ""}" in ${shot}`);
+	return r;
+}
+const union = (...rs) => { const x = Math.min(...rs.map((r) => r.x)), y = Math.min(...rs.map((r) => r.y)); return { x, y, w: Math.max(...rs.map((r) => r.x + r.w)) - x, h: Math.max(...rs.map((r) => r.y + r.h)) - y }; };
+const mid = (r) => [r.x + r.w / 2, r.y + r.h / 2];
+const shotH = (n) => RECTS[n]?._view?.[0]?.h ?? 900;
+
+// ---------------------------------------------------------------- captions, a sentence or half a sentence at a time
+const CHUNKS = [];
+function splitCaption(text, max = 84) {
+	const cut = (s) => {
+		if (s.length <= max) return [s];
+		const m = s.length / 2;
+		const marks = [...s.matchAll(/[,;:] /g)].map((x) => x.index + 1);
+		let k = marks.length ? marks.reduce((b, x) => (Math.abs(x - m) < Math.abs(b - m) ? x : b)) : s.indexOf(" ", m);
+		if (k < 12 || k > s.length - 12) k = s.indexOf(" ", m);
+		return [...cut(s.slice(0, k).trim()), ...cut(s.slice(k).trim())];
+	};
+	const parts = text.split(/(?<=[.?!])\s+(?=[A-Z])/).flatMap(cut);
+	const out = [];
+	for (const p of parts) { const last = out[out.length - 1]; if (last && last.length + p.length < 60) out[out.length - 1] = `${last} ${p}`; else out.push(p); }
+	return out;
+}
+for (const l of T.lines) {
+	if (l.hold) continue;
+	const parts = splitCaption(l.text);
+	const weight = (p) => p.length + 8;
+	const total = parts.reduce((a, p) => a + weight(p), 0);
+	let a = l.start;
+	parts.forEach((p, i) => { const d = ((l.end - l.start) * weight(p)) / total; CHUNKS.push({ text: p, a, b: a + d, first: i === 0, last: i === parts.length - 1, line: l }); a += d; });
+}
+const cap = $("cap");
+let capText = "";
+function captions(t) {
+	const c = CHUNKS.find((x) => t >= (x.first ? x.a - 0.12 : x.a) && t < (x.last ? x.b + 0.3 : x.b));
+	if (!c) { cap.style.opacity = 0; return; }
+	if (c.text !== capText) { cap.textContent = c.text; capText = c.text; }
+	cap.style.opacity = win(t, c.line.start - 0.12, c.line.end + 0.3, 0.12);
+}
+
+// ---------------------------------------------------------------- 1. the problem: more changes than anyone can read
+{
+	const root = $("problem");
+	const cols = 14, rows = 9, gw = 128, gh = 90, x0 = (1920 - (cols - 1) * gw - 112) / 2, y0 = 112;
+	const cards = [];
+	let seed = 7;
+	const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+	for (let r = 0; r < rows; r++) for (let c = 0; c < cols; c++) {
+		const bar = (cls, lo, hi) => `<i class="${cls}" style="width:${lo + rnd() * (hi - lo)}%"></i>`;
+		const card = el("div", "card", `<span class="sk">${silks(`agent-${r * cols + c}`, 26).svg}</span>${bar(rnd() < 0.55 ? "a" : "d", 45, 95)}${bar(rnd() < 0.4 ? "a" : "", 30, 90)}${bar(rnd() < 0.3 ? "d" : "", 20, 70)}`, root);
+		css(card, { left: `${x0 + c * gw}px`, top: `${y0 + r * gh}px` });
+		cards.push({ card, order: rnd() });
+	}
+	const chosen = cards[4 * cols + 6].card;
+	window.drawProblem = (t) => {
+		const v1 = V("problem", 1);
+		const focus = span(t, v1.start + 0.4, v1.start + 1.4);
+		for (const { card, order } of cards) {
+			const a = 0.5 + order * 5.8;
+			const on = span(t, a, a + 0.35);
+			const me = card === chosen;
+			card.style.opacity = on * (me ? 1 : 1 - 0.8 * focus);
+			card.style.transform = `translateY(${(1 - on) * 16}px) scale(${me ? 1 + 0.5 * focus : 1})`;
+		}
+		css(chosen, { zIndex: 5, borderColor: focus > 0.05 ? "var(--brass)" : "", borderWidth: `${2 + 2 * focus}px`, boxShadow: `0 0 0 ${12 * focus}px rgba(162, 123, 36, ${0.16 * focus})` });
+	};
+}
+
+// ---------------------------------------------------------------- 2. the title
+{
+	const root = $("title");
+	const word = el("div", "center big", "Steward", root); word.style.top = "170px";
+	const sub = el("div", "center sub", "The pull request, as a decision.", root); sub.style.top = "420px";
+	const judge = `<svg width="100" height="100" viewBox="0 0 24 24"><rect x="2" y="2" width="20" height="20" rx="5" fill="#f5eedc" stroke="#a27b24" stroke-width="1.5"/><path d="M7.5 9.5h9M12 6.5v11M9 17.5h6M7.5 9.5l-2 4.5h4zM16.5 9.5l-2 4.5h4z" fill="none" stroke="#a27b24" stroke-width="1.3" stroke-linejoin="round" stroke-linecap="round"/></svg>`;
+	const person = `<svg width="100" height="100" viewBox="0 0 24 24"><circle cx="12" cy="8" r="4.2" fill="#1e5b3a"/><path d="M3.8 21c.8-4.6 4.1-7 8.2-7s7.4 2.4 8.2 7z" fill="#1e5b3a"/></svg>`;
+	const steps = [
+		[AGENTS.map((a) => silks(a, 64).svg).join(""), "Agents race in<br>their own forks"],
+		[judge, "A judge proposes<br>one candidate"],
+		[person, "A person, the steward,<br>makes the call"],
+	].map(([ico, text], i) => { const s = el("div", "step", `<div class="ico">${ico}</div>${text}`, root); css(s, { left: `${120 + i * 600}px`, top: "590px" }); return s; });
+	const arrows = [0, 1].map((i) => { const a = el("div", "arrow", "→", root); css(a, { left: `${612 + i * 600}px`, top: "640px" }); return a; });
+	window.drawTitle = (t) => {
+		const s = S("title");
+		word.style.opacity = span(t, s.start - 0.2, s.start + 0.6);
+		word.style.transform = `scale(${lerp(1.06, 1, span(t, s.start - 0.2, s.start + 1.4))})`;
+		sub.style.opacity = span(t, atw("title", 0, "It turns"), atw("title", 0, "It turns", 0.6));
+		const when = [atw("title", 1, "Agents race"), atw("title", 1, "a judge proposes"), atw("title", 1, "and a person")];
+		steps.forEach((st, i) => { const k = span(t, when[i], when[i] + 0.5); st.style.opacity = k; st.style.transform = `translateY(${(1 - k) * 22}px)`; });
+		arrows.forEach((ar, i) => { ar.style.opacity = span(t, when[i + 1] - 0.3, when[i + 1]); });
+	};
+}
+
+// ---------------------------------------------------------------- 3. Cloudflare's four questions
+{
+	const root = $("questions");
+	const head = el("div", "qhead", "Cloudflare's four questions", root);
+	const qa = [
+		["How do agents know what others are working on?", "A claims board shows who holds which files."],
+		["What happens when changes conflict?", "Overlapping claims become rivals in one decision."],
+		["How do you review everything agents produce?", "A mechanical gate checks it all; the steward makes the taste calls."],
+		["How do you keep track of why a change was made?", "Every merge writes a ledger entry; any line traces back to one."],
+	];
+	const rows = qa.map(([q, a], i) => { const r = el("div", "qrow", `<div class="q">${q}</div><div class="a">${a}</div>`, root); r.style.top = `${250 + i * 165}px`; return r; });
+	window.drawQuestions = (t) => {
+		head.style.opacity = span(t, S("questions").start - 0.2, S("questions").start + 0.5);
+		rows.forEach((r, i) => {
+			const l = V("questions", i + 1);
+			const ans = l.start + ((l.end - l.start) * (l.text.indexOf("?") + 1)) / l.text.length;
+			r.style.opacity = span(t, l.start - 0.25, l.start + 0.25);
+			r.querySelector(".a").style.opacity = span(t, ans, ans + 0.5);
+		});
+	};
+}
+
+// ---------------------------------------------------------------- footage: shots, camera, highlights
+const SCREEN = { x: 240, y: 100, w: 1440, h: 810 }, K0 = SCREEN.w / 1600;
+const cam = $("cam"), hls = $("hls"), tags = $("tags"), chapter = $("chapter");
+const imgs = new Map();
+async function ensure(names) {
+	for (const n of names) if (!imgs.has(n)) { const im = el("img", "", undefined, cam); im.src = `shots/${n}.png`; css(im, { height: `${shotH(n)}px`, opacity: 0 }); imgs.set(n, im); }
+	for (const [n, im] of imgs) if (!names.includes(n)) { im.remove(); imgs.delete(n); }
+	await Promise.all(names.map((n) => imgs.get(n).decode().catch(() => {})));
+}
+const hlPool = [], tagPool = [];
+const hlEl = (i) => hlPool[i] ?? (hlPool[i] = el("div", "hl", "", hls));
+const tagEl = (i) => tagPool[i] ?? (tagPool[i] = el("div", "tagline", "", tags));
+
+const KEYS = []; // { t, shot, z, f:[x,y], dur }: be on this framing at t, easing in over dur (a new shot dissolves in)
+const HL = []; // { a, b, shot, r, color, label, side }
+const CHAPTERS = [];
+const key = (t, shot, z, f, dur = 1.4) => KEYS.push({ t, shot, z, f, dur });
+const hl = (a, b, shot, r, color = "brass", label, side = "below") => HL.push({ a, b, shot, r: { x: r.x - 8, y: r.y - 8, w: r.w + 16, h: r.h + 16 }, color, label, side });
+const chap = (a, b, text, sub) => CHAPTERS.push({ a, b, text, sub });
+
+function build() {
+	// --- claims: the board, live
+	const c = "claims";
+	chap(S(c).start - 0.3, S("gate").start, "Claims", "a real run, start to finish");
+	key(S(c).start - 0.3, "race-171", 1.0, [800, 450]);
+	key(at(c, 0, 1), "race-171", 1.12, [700, 340], 5.6);
+	key(atw(c, 1, "opens a task", 0.4), "race-171", 1.5, mid(R("race-171", ".taskhead")));
+	hl(atw(c, 1, "opens a task", 0.5), at(c, 1, 1) + 0.4, "race-171", R("race-171", ".taskhead"), "brass", "Dana's task, with its checks");
+	key(at(c, 2, 0), "race-175", 1.3, [700, 470]);
+	key(at(c, 2, 0.3), "race-177", 1.3, [700, 470]);
+	key(at(c, 2, 0.55), "race-179", 1.3, [700, 480]);
+	key(at(c, 2, 0.8), "race-184", 1.3, [700, 500]);
+	const agentCol = union(R("race-184", "th", "Agent"), R("race-184", "row", "qwen"));
+	hl(atw(c, 2, "each running"), at(c, 3, 0) + 0.2, "race-184", { ...agentCol, w: 290 }, "brass", "Six agents, six Workers AI models", "right");
+	const rulesTh = R("race-184", "th", "rules.js"), testTh = R("race-184", "th", "rules.test.js");
+	const fileCols = { x: rulesTh.x, y: agentCol.y, w: testTh.x + testTh.w - rulesTh.x, h: agentCol.h };
+	key(at(c, 3, 0), "race-184", 1.3, [760, 520]);
+	hl(at(c, 3, 0.02), atw(c, 3, "Steward forks", 0.4), "race-184", fileCols, "brass", "The files each one will touch", "right");
+	key(atw(c, 3, "Steward forks", 1.2), "race-184", 1.0, [800, 450], 1.6);
+	key(at(c, 4, 0) + 0.4, "race-184", 1.0, [800, 450], 1.4);
+	key(atw(c, 4, "The board updates", 0.6), "race-184", 1.12, [1150, 476]);
+	hl(atw(c, 4, "The board updates", 0.6), at(c, 4, 1) + 0.3, "race-184", R("race-184", ".feed"), "turf", "Live, from the board's Durable Object", "leftmid");
+	key(at(c, 5, 0), "race-184", 1.3, [760, 560]);
+	hl(atw(c, 5, "All six claimed"), H(c).start + 1.6, "race-184", { ...rulesTh, h: agentCol.h }, "flag", "All six claimed rules.js", "right");
+	hl(atw(c, 5, "so all six are rivals"), H(c).start + 1.6, "race-184", R("race-184", ".decisionrow"), "flag", "So they are rivals in one decision", "above");
+	key(H(c).start + 2.2, "race-184", 1.0, [800, 450], 1.6);
+
+	// --- gate 1: does it work?
+	const g = "gate";
+	chap(S(g).start, S("card").start, "Gate 1", "does it work?");
+	key(S(g).start, "race-194", 1.2, [780, 560]);
+	key(at(g, 1, 1), "race-194", 1.4, [900, 600], 9);
+	const gem206 = R("race-206-checks", "row", "gemma");
+	key(at(g, 2, 0), "race-206-checks", 1.45, mid(gem206));
+	hl(atw(g, 2, "but its change broke"), atw(g, 2, "It read why"), "race-206-checks", gem206, "flag", "Said done, broke a test: bounced", "above");
+	key(atw(g, 2, "It read why"), "race-235", 1.45, mid(R("race-235", "row", "gemma")));
+	const gem247 = R("race-247", "row", "gemma");
+	key(atw(g, 2, "and passed", -0.5), "race-247", 1.45, mid(gem247));
+	hl(atw(g, 2, "and passed", -0.3), at(g, 2, 1) + 0.5, "race-247", gem247, "turf", "Fixed the test: passed");
+	key(at(g, 3, 0), "race-267", 1.25, [780, 640]);
+	const ds = R("race-267", "row", "deepseek"), nm = R("race-267", "row", "nemotron");
+	hl(atw(g, 3, "Two agents"), H(g).start + 0.6, "race-267", union(ds, nm), "flag", "Claimed only rules.js", "above");
+	hl(atw(g, 3, "could not touch it"), H(g).start + 0.6, "race-267", union(R("race-267", "cell2", "deepseek"), R("race-267", "cell2", "nemotron")), "flag", "The test file was not in their claim", "right");
+	key(H(g).start + 0.3, "race-440", 1.0, [800, 450]);
+	key(at(g, 4, 0.5), "race-452", 1.0, [800, 450]);
+
+	// --- the card: is it the one to ship?
+	const k = "card";
+	chap(S(k).start, S("why").start, "The card", "is it the one to ship?");
+	key(S(k).start, "card-ready", 1.0, [800, 450]);
+	key(atw(k, 0, "the judge proposes one", 0.6), "card-ready", 1.4, [560, 330]);
+	hl(atw(k, 0, "the judge proposes one", 0.6), at(k, 0, 1) + 0.4, "card-ready", R("card-ready", ".proposal"), "brass", "The judge's pick, and the rule that decided it", "right");
+	hl(atw(k, 0, "Here it picked Kimi"), at(k, 0, 1) + 0.4, "card-ready", R("card-ready", "lane.tag", "kimi"), "brass");
+	key(at(k, 1, 0) + 0.3, "card-ready", 1.25, [700, 860]);
+	key(H(k, 0).end, "card-ready", 1.25, [880, 860], 10.5);
+	["kimi", "gemma", "glm", "qwen"].forEach((who, i) => {
+		const a = atw(k, 1, "attacks every candidate", 0.4 + i * 0.9);
+		hl(a, H(k, 0).end - 0.2, "card-ready", R("card-ready", "lane.objection", who), "flag", i === 0 ? "The referee's strongest objection" : undefined, "above");
+	});
+	key(at(k, 2, 0) + 0.5, "card-ready", 1.0, [800, 450], 1.6);
+	const lanes4 = ["kimi", "gemma", "glm", "qwen"];
+	hl(atw(k, 2, "four live Previews"), atw(k, 2, "the checks,"), "card-ready", union(...lanes4.map((w) => R("card-ready", "lane.frame", w))), "turf", "Four live Previews, side by side");
+	hl(atw(k, 2, "the checks,"), atw(k, 2, "and the agent's own words"), "card-ready", union(...lanes4.map((w) => R("card-ready", "lane.figures", w))), "turf", "The checks and the diff");
+	key(atw(k, 2, "and the agent's own words", 0.9), "card-ready", 1.0, [800, 800], 1.3);
+	hl(atw(k, 2, "and the agent's own words", 0.6), at(k, 2, 1) + 0.5, "card-ready", union(...lanes4.map((w) => R("card-ready", "lane.words", w))), "turf", "The agent's own words, last", "above");
+	key(atw(k, 3, "GLM's hold message"), "card-ready", 1.4, [886, 740]);
+	hl(atw(k, 3, "GLM's hold message", 0.6), at(k, 3, 1) + 0.4, "card-ready", R("card-ready", "lane.words", "glm"), "turf", "Its reason states the terms", "right");
+	hl(atw(k, 3, "and it tests both sides"), at(k, 3, 1) + 0.4, "card-ready", R("card-ready", "lane.figures", "glm"), "turf", "Two tests added", "right");
+	const ship = union(R("card-reason", "lanedetails.ship", "glm"), R("card-reason", "lanebutton", "glm"));
+	key(at(k, 4, 0), "card-reason", 1.5, [800, 940]);
+	hl(at(k, 4, 0.06), atw(k, 4, "and the reason goes"), "card-reason", ship, "turf", "One click, and a reason", "right");
+	const verdict = R("card-merged", ".verdict");
+	key(atw(k, 4, "and the reason goes"), "card-merged", 1.3, mid(verdict));
+	hl(atw(k, 4, "and the reason goes", 0.4), H(k, 1).start + 1.2, "card-merged", verdict, "turf", "The reason, in the record", "right");
+	key(at(k, 5, 0) + 0.2, "card-merged", 1.1, [800, 330]);
+	// The verdict's last line, "On main as 9f36599": the squash commit carries a Steward-Decision: d-t2 trailer.
+	hl(atw(k, 5, "carrying"), H(k, 1).start + 1.2, "card-merged", { x: verdict.x + 12, y: verdict.y + verdict.h - 30, w: 236, h: 22 }, "brass", "On main as 9f36599, with Steward-Decision: d-t2", "right");
+	key(H(k, 1).start + 1.8, "card-merged", 1.0, [800, 450], 1.2);
+
+	// --- why-blame
+	const w = "why";
+	chap(S(w).start, S("check").start, "Why-blame", "any line, back to its decision");
+	key(S(w).start, "why-plain", 1.3, [600, 400]);
+	hl(atw(w, 0, "so every line", -0.3), at(w, 1, 0) + 0.3, "why-plain", { x: 296, y: R("why-plain", "fromline", "5").y, w: 80, h: 22 }, "brass", "The decision that put this line here", "right");
+	key(at(w, 1, 0), "why", 1.0, [800, 450]);
+	key(atw(w, 1, "Steward shows"), "why", 1.22, [1330, 470]);
+	hl(at(w, 1, 0) + 0.1, S(w).end, "why", R("why", ".code tr.sel"), "brass");
+	const vr = R("why", "whyDIV.verdict"), ob = R("why", "whyDIV.objection");
+	const pick = { x: vr.x, y: vr.y + vr.h + 6, w: vr.w, h: ob.y - (vr.y + vr.h) - 18 };
+	[["the task", R("why", "whyH2."), "The task"], ["the rivals it beat", R("why", "whyUL.alsoran"), "The rivals it beat"], ["the judge's pick", pick, "The judge's pick"], ["the objection", ob, "The objection"], ["and who decided", vr, "Who decided, and why"]].forEach(([phrase, r, label]) => {
+		hl(atw(w, 1, phrase), S(w).end, "why", r, "turf", label, "left");
+	});
+
+	// --- the check: auto-merge is earned
+	const ch = "check";
+	chap(S(ch).start, S("scale").start, "The check", "auto-merge is earned, path by path");
+	key(S(ch).start, "paths-before", 1.0, [800, 450]);
+	hl(atw(ch, 0, "Every week"), atw(ch, 0, "Most of that history"), "paths-before", R("paths-before", ".taskhead"), "brass", "The judge, replayed on Dana's past decisions");
+	hl(atw(ch, 0, "Most of that history"), at(ch, 0, 1) + 0.4, "paths-before", R("paths-before", "path", "Invoice queue page"), "brass", "Made-up history, labeled synthetic", "above");
+	const pr = (shot, title) => R(shot, "path", title);
+	key(at(ch, 1, 0), "paths-rules", 1.15, [720, mid(pr("paths-rules", "Payment rules"))[1]]);
+	hl(atw(ch, 1, "Dana's overrule"), at(ch, 1, 1) + 0.3, "paths-rules", pr("paths-rules", "Payment rules"), "flag", "1 of 10 differ: her overrule. The path stays hers");
+	key(at(ch, 2, 0), "paths-ui", 1.15, [720, mid(pr("paths-ui", "Invoice queue page"))[1]]);
+	hl(atw(ch, 2, "she overruled"), at(ch, 2, 1) + 0.3, "paths-ui", pr("paths-ui", "Invoice queue page"), "flag", "3 of 8 differ: auto-merge suspended", "above");
+	key(at(ch, 3, 0), "paths-locales", 1.15, [720, mid(pr("paths-locales", "Translations"))[1]]);
+	hl(atw(ch, 3, "it matched her"), at(ch, 3, 1) + 0.3, "paths-locales", pr("paths-locales", "Translations"), "turf", "0 of 6 differ: auto-merge earned");
+	const earned = R("paths-locales", "path.auto .big", "Translations");
+	hl(atw(ch, 3, "Even there"), at(ch, 3, 1) + 0.3, "paths-locales", { x: earned.x - 6, y: earned.y - 4, w: 480, h: 140 }, "brass", "1 in 10 still go to a person", "right");
+	key(at(ch, 4, 0), "paths-locales", 1.0, [800, 450]);
+	hl(atw(ch, 4, "stops that path"), S(ch).end, "paths-locales", R("paths-locales", "pathul.grants", "Invoice queue page"), "flag", "Suspended: Dana decides again", "above");
+
+	// --- scale: 120 scripted agents
+	const s = "scale";
+	chap(S(s).start, S("stack").start, "Scale", "120 scripted agents, 20 tasks");
+	["scale-548", "scale-556", "scale-566", "scale-576", "scale-586", "scale-596"].forEach((n, i, all) => key(S(s).start + ((at(s, 1, 0) - S(s).start) * i) / all.length, n, 1.0, [800, 450]));
+	const fr3 = R("scale-606", "row", "fr-3");
+	key(at(s, 1, 0), "scale-606", 1.45, mid(fr3));
+	hl(atw(s, 1, "the gate reads the file"), H(s).start + 0.3, "scale-606", fr3, "flag", "A file check, at the candidate's commit", "above");
+	["scale-616", "scale-626", "scale-640", "scale-660"].forEach((n, i) => key(H(s).start + 0.4 + i * 0.55, n, 1.15, [780, 330]));
+	const totals = R("scale-999", ".totals");
+	key(H(s).end - 0.2, "scale-999", 1.55, mid(totals));
+	const fig = (label) => R("scale-999", "fig", label);
+	hl(atw(s, 2, "Eighty broken files"), S(s).end, "scale-999", fig("bounced"), "flag");
+	hl(atw(s, 2, "The judge merged sixteen"), S(s).end, "scale-999", fig("merged by the judge alone"), "turf");
+	hl(atw(s, 2, "sent four"), S(s).end, "scale-999", fig("waiting for the steward"), "brass");
+	hl(atw(s, 2, "in about two minutes"), S(s).end, "scale-999", totals, "turf", "About two minutes, start to finish", "below");
+	key(at(s, 3, 0), "scale-999", 1.2, [790, 400]);
+
+	// --- close: the ledger
+	const cl = "close";
+	chap(at(cl, 1, 0) - 0.5, T.duration, "Ledger", "every merge, and who decided it");
+	key(at(cl, 1, 0) - 0.5, "ledger", 1.45, [760, 400]);
+	key(atw(cl, 1, "With Steward", -0.2), "ledger", 1.45, [760, 1110], 2.6);
+	const dCell = (dec) => R("ledger", "ledgercell4", dec);
+	hl(atw(cl, 1, "every merge records"), T.duration, "ledger", dCell("d-l-es"), "brass", "The judge, under a grant the path earned", "above");
+	hl(atw(cl, 1, "who made the call"), T.duration, "ledger", dCell("d-t2"), "turf", "Dana, who overruled it", "below");
+
+	KEYS.sort((p, q) => p.t - q.t);
+}
+
+function cameraAt(t) {
+	let i = 0;
+	while (i + 1 < KEYS.length && KEYS[i + 1].t <= t) i++;
+	const k = KEYS[i], n = KEYS[i + 1], p = KEYS[i - 1];
+	let z = k.z, f = k.f;
+	if (n && n.shot === k.shot) {
+		const m = span(t, Math.max(k.t, n.t - n.dur), n.t);
+		z = lerp(k.z, n.z, m);
+		f = [lerp(k.f[0], n.f[0], m), lerp(k.f[1], n.f[1], m)];
+	}
+	const cut = p && p.shot !== k.shot && t >= k.t;
+	return { shot: k.shot, z, f, prev: cut ? p : null, fade: cut ? span(t, k.t, k.t + 0.45) : 1 };
+}
+
+function place(z, f, h) {
+	const s = K0 * z;
+	return { s, tx: clamp(SCREEN.w / 2 - f[0] * s, SCREEN.w - 1600 * s, 0), ty: clamp(SCREEN.h / 2 - f[1] * s, SCREEN.h - h * s, 0) };
+}
+const tf = (p) => `translate(${p.tx}px, ${p.ty}px) scale(${p.s})`;
+
+async function drawFootage(t) {
+	const c = cameraAt(t);
+	const want = [c.shot];
+	if (c.prev && c.fade < 1) want.push(c.prev.shot);
+	const next = KEYS.find((x) => x.t > t && x.shot !== c.shot);
+	if (next && next.t - t < 1.5) want.push(next.shot);
+	await ensure([...new Set(want)]);
+	const cur = place(c.z, c.f, shotH(c.shot));
+	for (const [n, im] of imgs) {
+		if (n === c.shot) css(im, { opacity: c.fade, zIndex: 2, transform: tf(cur) });
+		else if (c.prev && n === c.prev.shot && c.fade < 1) css(im, { opacity: 1, zIndex: 1, transform: tf(place(c.prev.z, c.prev.f, shotH(n))) });
+		else im.style.opacity = 0;
+	}
+	hls.style.transform = tf(cur);
+	let hi = 0, ti = 0;
+	for (const h of HL) {
+		if (h.shot !== c.shot) continue;
+		const o = win(t, h.a, h.b, 0.3) * c.fade;
+		if (o <= 0) continue;
+		const box = hlEl(hi++);
+		box.className = `hl ${h.color}`;
+		css(box, { left: `${h.r.x}px`, top: `${h.r.y}px`, width: `${h.r.w}px`, height: `${h.r.h}px`, opacity: o, borderWidth: `${4 / cur.s}px`, borderRadius: `${10 / cur.s}px` });
+		if (!h.label) continue;
+		const tg = tagEl(ti++);
+		tg.className = `tagline ${h.color}`;
+		if (tg.textContent !== h.label) tg.textContent = h.label;
+		const bx = SCREEN.x + cur.tx + h.r.x * cur.s, by = SCREEN.y + cur.ty + h.r.y * cur.s, bw = h.r.w * cur.s, bh = h.r.h * cur.s;
+		const tw = tg.offsetWidth, th = tg.offsetHeight;
+		let x = bx, y = by + bh + 10;
+		if (h.side === "above") y = by - th - 10;
+		if (h.side === "right") { x = bx + bw + 12; y = by + 4; }
+		if (h.side === "left") { x = bx - tw - 12; y = by + 4; }
+		if (h.side === "leftmid") { x = bx - tw - 12; y = by + bh / 2 - th / 2; }
+		x = clamp(x, SCREEN.x + 12, SCREEN.x + SCREEN.w - tw - 12);
+		y = clamp(y, SCREEN.y + 12, SCREEN.y + SCREEN.h - th - 12);
+		css(tg, { left: `${x}px`, top: `${y}px`, opacity: o });
+	}
+	for (let i = hi; i < hlPool.length; i++) hlPool[i].style.opacity = 0;
+	for (let i = ti; i < tagPool.length; i++) tagPool[i].style.opacity = 0;
+	const cp = CHAPTERS.find((x) => t >= x.a && t < x.b);
+	const html = cp ? `${cp.text}<small>${cp.sub}</small>` : "";
+	if (chapter.innerHTML !== html) chapter.innerHTML = html;
+	chapter.style.opacity = cp ? win(t, cp.a, cp.b, 0.4) : 0;
+}
+
+// ---------------------------------------------------------------- overlays on the footage
+{
+	const root = $("footage");
+	// Gate 1, stage by stage.
+	const stages = [["push", ["gate", 0, "Every push"]], ["Workflow", ["gate", 0, "starts a Workflow"]], ["candidate branch", ["gate", 1, "to a candidate branch"]], ["build and tests", ["gate", 1, "A build runs the tests"]], ["Worker Preview", ["gate", 1, "publishes a Worker Preview"]], ["checks", ["gate", 1, "probes the Preview"]]];
+	const bar = el("div", "panel", "", root);
+	css(bar, { left: "960px", top: "122px", transform: "translateX(-50%)", padding: "14px 18px", display: "flex", gap: "10px", alignItems: "center", whiteSpace: "nowrap" });
+	const chips = stages.map(([name], i) => { const chp = el("span", "chip", name, bar); if (i < stages.length - 1) css(el("span", "", "→", bar), { fontSize: "28px", color: "var(--ink-3)" }); return chp; });
+	// Forks in Artifacts, a token each.
+	const lock = `<svg width="26" height="26" viewBox="0 0 24 24"><rect x="4.5" y="10.5" width="15" height="10" rx="2" fill="#c1392b"/><path d="M8 10.5V8a4 4 0 0 1 8 0v2.5" fill="none" stroke="#c1392b" stroke-width="2.2"/></svg>`;
+	const forks = el("div", "panel", `<div style="font-weight:700;font-size:29px;margin-bottom:12px">In Cloudflare Artifacts</div>
+		<div style="display:grid;grid-template-columns:30px 1fr;column-gap:12px;align-items:center;padding:6px 0 14px;border-bottom:2px solid var(--rail)">${lock}<span class="mono" style="font-size:23px;font-weight:700">larkspur-ap</span><span></span><span class="nopush" style="font-size:23px;font-weight:600;color:var(--ink-3)">The app. No agent can push to it.</span></div>
+		${["deepseek", "gemma", "glm", "kimi", "nemotron", "qwen"].map((a) => `<div class="fork" style="display:flex;align-items:center;gap:12px;padding:9px 0;opacity:0">${silks(a, 30).svg}<span class="mono" style="font-size:19px;white-space:nowrap">larkspur-ap--t2--${a}</span><span class="tok" style="margin-left:auto;padding:3px 10px;border-radius:7px;background:var(--turf-2);color:var(--turf);font-weight:700;font-size:20px;opacity:0;white-space:nowrap">its own token</span></div>`).join("")}`, root);
+	css(forks, { left: "1106px", top: "196px", width: "560px", padding: "22px 24px" });
+	// Any agent that speaks HTTP and git.
+	const api = el("div", "panel mono", `<div style="color:#9aa8a0"># any agent: HTTP for the board, git for the code</div><div><span style="color:#7fbf98">POST</span> /api/tasks/t2/claim  {"files": ["src/rules.js"]}</div><div><span style="color:#7fbf98">git</span>  push              to its own fork, with its token</div><div><span style="color:#7fbf98">POST</span> /api/tasks/t2/done   {"summary": "…"}</div>`, root);
+	css(api, { left: "300px", top: "560px", width: "1100px", padding: "26px 32px", background: "var(--ink)", color: "#e8eee9", fontSize: "26px", lineHeight: "1.75", whiteSpace: "pre" });
+	// Budgets and plans.
+	const budget = el("div", "dark", "This path: 45 minutes and 400,000 tokens per fork", root);
+	css(budget, { left: "560px", top: "236px" });
+	const plan = el("div", "dark mono", ".steward/PLAN.md, committed with every push", root);
+	css(plan, { left: "560px", top: "304px", fontSize: "25px" });
+	// The scale run is scripted.
+	const scripted = el("div", "dark", "Scripted agents: throughput, not model quality", root);
+	css(scripted, { right: "262px", top: "122px" });
+
+	window.drawOverlays = (t) => {
+		bar.style.opacity = win(t, at("gate", 0, 0) - 0.1, at("gate", 1, 1) + 0.7, 0.4);
+		chips.forEach((chp, i) => chp.classList.toggle("on", t >= atw(...stages[i][1])));
+		forks.style.opacity = win(t, atw("claims", 3, "Steward forks", -0.2), at("claims", 3, 1) + 0.4, 0.4);
+		forks.querySelectorAll(".fork").forEach((f, i) => { f.style.opacity = span(t, atw("claims", 3, "for every agent", i * 0.22), atw("claims", 3, "for every agent", i * 0.22 + 0.3)); });
+		forks.querySelectorAll(".tok").forEach((tk, i) => { tk.style.opacity = span(t, atw("claims", 3, "gives each a token", i * 0.15), atw("claims", 3, "gives each a token", i * 0.15 + 0.3)); });
+		forks.querySelector(".nopush").style.color = t >= atw("claims", 3, "No agent can push") ? "var(--flag)" : "var(--ink-3)";
+		api.style.opacity = win(t, at("claims", 4, 0) - 0.1, atw("claims", 4, "The board updates", 0.3), 0.4);
+		budget.style.opacity = win(t, atw("gate", 4, "Every fork also"), at("gate", 4, 1) + 0.5, 0.4);
+		plan.style.opacity = win(t, atw("gate", 4, "every agent commits"), at("gate", 4, 1) + 0.5, 0.4);
+		scripted.style.opacity = win(t, S("scale").start + 0.4, S("scale").end + 0.2, 0.4);
+	};
+}
+
+// ---------------------------------------------------------------- 10. the stack
+{
+	const root = $("stack");
+	css(el("div", "qhead", "All of it runs on Cloudflare", root), { left: "160px", top: "100px", fontSize: "62px" });
+	const N = {
+		agents: [160, 280, "Agents", "Workers AI models"],
+		board: [560, 280, "Claims board", "a Durable Object"],
+		forks: [960, 280, "Forks", "Artifacts"],
+		gate: [1360, 280, "Gate 1", "a Workflow"],
+		previews: [1360, 600, "Previews", "Worker Previews"],
+		decision: [960, 600, "The decision", "Workflow, Workers AI"],
+		steward: [560, 600, "The steward", "a person"],
+		record: [160, 600, "main and the record", "Artifacts"],
+	};
+	const nodes = {};
+	for (const [k, [x, y, title, sub]] of Object.entries(N)) { const n = el("div", "node", `<b>${title}</b><span>${sub}</span>`, root); css(n, { left: `${x}px`, top: `${y}px` }); nodes[k] = n; }
+	const order = ["agents", "board", "forks", "gate", "previews", "decision", "steward", "record"];
+	const edges = order.slice(1).map((b, i) => {
+		const a = order[i], [ax, ay] = N[a], [bx, by] = N[b];
+		const e = el("div", "edge", "", root);
+		const across = ay === by;
+		const x1 = across ? (ax < bx ? ax + 320 : ax) : ax + 160, y1 = across ? ay + 78 : ay + 156;
+		const x2 = across ? (ax < bx ? bx : bx + 320) : bx + 160, y2 = across ? by + 78 : by;
+		css(e, { left: `${x1}px`, top: `${y1 - 2}px`, width: `${Math.hypot(x2 - x1, y2 - y1)}px`, transform: `rotate(${Math.atan2(y2 - y1, x2 - x1)}rad)` });
+		return e;
+	});
+	window.drawStack = (t) => {
+		const s = S("stack");
+		order.forEach((k, i) => { const a = s.start + 0.1 + i * 0.22; nodes[k].style.opacity = span(t, a, a + 0.4); });
+		edges.forEach((e, i) => { const a = s.start + 0.3 + i * 0.22; e.style.opacity = span(t, a, a + 0.4); });
+		const lit = (k, a, b) => nodes[k].classList.toggle("lit", t >= a && t < b);
+		lit("forks", atw("stack", 0, "Artifacts holds"), atw("stack", 1, "A Durable Object"));
+		lit("record", atw("stack", 0, "the decision record"), atw("stack", 1, "A Durable Object"));
+		lit("board", atw("stack", 1, "A Durable Object"), atw("stack", 1, "Workflows run"));
+		lit("gate", atw("stack", 1, "Workflows run"), atw("stack", 1, "Workers AI runs"));
+		lit("decision", atw("stack", 1, "and the decision"), atw("stack", 1, "and Worker Previews"));
+		lit("agents", atw("stack", 1, "Workers AI runs"), atw("stack", 1, "and Worker Previews"));
+		lit("previews", atw("stack", 1, "and Worker Previews"), s.end + 1);
+	};
+}
+
+// ---------------------------------------------------------------- 11. yours to run, and the end card
+{
+	const root = $("close");
+	css(el("div", "qhead", "Yours to run", root), { left: "330px", top: "150px", fontSize: "62px" });
+	const term = el("div", "term mono", `<div class="c"># on your own Cloudflare account</div><div><span class="p">$</span> git clone https://github.com/craigm26/steward</div><div><span class="p">$</span> npx wrangler deploy</div><div><span class="p">$</span> node scripts/seed-app.mjs --jurisdiction <b class="where" style="color:#fff">us</b></div><div class="c"># us or eu: every repository stays in the one you pick</div>`, root);
+	const pills = el("div", "", `<span class="pill on">United States</span><span class="pill">European Union</span><span class="pill" style="border-color:var(--turf);color:var(--turf)">Open source, Apache-2.0</span>`, root);
+	css(pills, { position: "absolute", left: "330px", top: "740px", opacity: 0 });
+	window.drawClose = (t) => {
+		term.style.opacity = span(t, at("close", 0, 0) - 0.2, at("close", 0, 0) + 0.4);
+		pills.style.opacity = span(t, atw("close", 0, "in the United States"), atw("close", 0, "in the United States", 0.5));
+		// A switch, not a list: the repositories live in one jurisdiction, and the command changes with it.
+		const eu = t >= atw("close", 0, "or the European Union");
+		pills.children[0].classList.toggle("on", !eu);
+		pills.children[1].classList.toggle("on", eu);
+		term.querySelector(".where").textContent = eu ? "eu" : "us";
+	};
+	const end = $("end");
+	end.style.background = "var(--paper)";
+	css(el("div", "center big", "Steward", end), { top: "190px" });
+	css(el("div", "center", "steward.craigm26.workers.dev", end), { top: "450px", fontWeight: 600, fontSize: "50px", color: "var(--turf)" });
+	css(el("div", "center", "github.com/craigm26/steward, open source under Apache-2.0", end), { top: "528px", fontWeight: 500, fontSize: "36px", color: "var(--ink)" });
+	css(el("div", "center", "Built on Cloudflare Workers, Durable Objects, Workflows, Workers AI and Artifacts", end), { top: "626px", fontWeight: 500, fontSize: "32px", color: "var(--ink-2)" });
+	css(el("div", "center", "Every merge records who made the call, and why.", end), { top: "760px", fontWeight: 600, fontSize: "42px" });
+}
+
+// ---------------------------------------------------------------- the frame
+build();
+window.DURATION = T.duration;
+window.render = async (t) => {
+	// Each layer is fully on from a to b, fading in over the 0.4 s before a and out over the 0.4 s after b. At a change
+	// of layer the old one fades to paper, then the new one comes up, just before the next line is spoken.
+	const layer = (id, a, b) => { const o = span(t, a - 0.4, a) * (1 - span(t, b, b + 0.4)); $(id).style.opacity = o; return o > 0; };
+	const out = (e) => e - 0.9, inn = (e) => e - 0.1;
+	const ledgerE = at("close", 1, 0) + 0.3, endE = T.duration - 3.0;
+	const on = {
+		problem: layer("problem", -1, out(S("title").start)),
+		title: layer("title", inn(S("title").start), out(S("questions").start)),
+		questions: layer("questions", inn(S("questions").start), out(S("claims").start)),
+		stack: layer("stack", inn(S("stack").start), out(S("close").start)),
+		close: layer("close", inn(S("close").start), out(ledgerE)),
+		end: layer("end", inn(endE), 1e9),
+	};
+	const footA = inn(S("claims").start), footB = out(S("stack").start);
+	const o = t < ledgerE - 1 ? span(t, footA - 0.4, footA) * (1 - span(t, footB, footB + 0.4)) : span(t, inn(ledgerE) - 0.4, inn(ledgerE)) * (1 - span(t, out(endE), out(endE) + 0.4));
+	$("footage").style.opacity = o;
+	if (on.problem) window.drawProblem(t);
+	if (on.title) window.drawTitle(t);
+	if (on.questions) window.drawQuestions(t);
+	if (o > 0) { await drawFootage(t); window.drawOverlays(t); }
+	if (on.stack) window.drawStack(t);
+	if (on.close) window.drawClose(t);
+	captions(t);
+	return 1;
+};
+window.READY = (async () => { await document.fonts.ready; await document.fonts.load('700 40px "Archivo"'); return 1; })();
+</script>
+</body>
+</html>

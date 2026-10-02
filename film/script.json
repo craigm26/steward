@@ -1,0 +1,119 @@
+{
+  "voice": "thalia",
+  "scenes": [
+    {
+      "id": "problem",
+      "lines": [
+        "Agents can now write more code in a day than a team can read in a week.",
+        "Writing the change is no longer the hard part. Deciding which change ships is."
+      ]
+    },
+    {
+      "id": "title",
+      "lines": [
+        "This is Steward. It turns the pull request into a decision.",
+        "Agents race in their own forks, a judge proposes one candidate, and a person, the steward, makes the call."
+      ]
+    },
+    {
+      "id": "questions",
+      "lines": [
+        "Cloudflare asked four questions about the next Git platform.",
+        "How do agents know what others are working on? Steward keeps a claims board.",
+        "What happens when changes conflict? Overlapping claims become rivals in one decision.",
+        "How do you review everything agents produce? A mechanical gate checks all of it, so the steward only makes taste calls.",
+        "And how do you keep track of why a change was made? Every merge writes a ledger entry, and any line traces back to one."
+      ]
+    },
+    {
+      "id": "claims",
+      "lines": [
+        "Here is a real run, for a fictional company: Larkspur Garden Co., paying its suppliers.",
+        "Dana, the steward, opens a task: hold any invoice with payment terms longer than sixty days.",
+        "Six agents take it, each running a different model on Workers AI.",
+        "Each claims the files it will touch. Steward forks the app for every agent in Cloudflare Artifacts, and gives each a token for its own fork only. No agent can push to the app.",
+        "Any agent that speaks HTTP and git can join the same way. The board updates live for everyone watching, from the same Durable Object that keeps the claims.",
+        "All six claimed the rules file, so all six are rivals in one decision.",
+        {
+          "hold": 3.0
+        }
+      ]
+    },
+    {
+      "id": "gate",
+      "lines": [
+        "Every push starts a Workflow, straight from the Artifacts event.",
+        "Steward copies the commit to a candidate branch. A build runs the tests and publishes a Worker Preview of exactly that commit, and the gate probes the Preview with the task's checks.",
+        "Gemma said it was done, but its change broke an existing test. It was bounced before anyone saw it. It read why, fixed the test, and passed.",
+        "Two agents had claimed only the rules file. They broke the same test, could not touch it, and stayed out.",
+        {
+          "hold": 2.0
+        },
+        "Every fork also has a budget in minutes and tokens, and every agent commits its plan with each push, so a stopped agent resumes from its last commit."
+      ]
+    },
+    {
+      "id": "card",
+      "lines": [
+        "When every rival has settled, the judge proposes one and names the rule that decided it. Here it picked Kimi: the smallest change.",
+        "A referee, another model, attacks every candidate and posts its strongest objection. On an earlier run it caught a wrong reason code that every check had passed.",
+        {
+          "hold": 2.5
+        },
+        "The card puts the evidence first: four live Previews side by side, the checks, the diff, and the agent's own words last.",
+        "Dana disagrees. GLM's hold message tells the clerk the actual limit, and it tests both sides.",
+        "Shipping a different candidate takes one click and a reason, and the reason goes into the record.",
+        "It merges as one commit on main, carrying the decision's id.",
+        {
+          "hold": 2.5
+        }
+      ]
+    },
+    {
+      "id": "why",
+      "lines": [
+        "Every merge is one commit on main, so every line traces back to one decision.",
+        "Click a line, and Steward shows the task, the rivals it beat, the judge's pick, the objection, and who decided, and why."
+      ]
+    },
+    {
+      "id": "check",
+      "lines": [
+        "Auto-merge is earned, path by path. Every week the judge is replayed on the steward's past decisions. Most of that history is made up for this demo, and labeled so.",
+        "On payment rules, Dana's overrule just now counts against the judge, so that path stays with her.",
+        "On the queue page, she overruled it three times out of eight, so that path lost auto-merge.",
+        "On translations, it matched her every time, so that path earned it. Even there, one decision in ten still goes to a person.",
+        "And between checks, an overrule of a decision the judge would have merged alone stops that path's auto-merge at once."
+      ]
+    },
+    {
+      "id": "scale",
+      "lines": [
+        "Now at scale: one hundred and twenty scripted agents on twenty translation tasks.",
+        "Each translation is data, so the gate reads the file at the candidate's commit instead of building a Preview.",
+        {
+          "hold": 2.5
+        },
+        "Eighty broken files bounced at the gate. The judge merged sixteen decisions on its own and sent four to the steward, in about two minutes.",
+        "These agents are scripted, so this shows throughput, not model quality."
+      ]
+    },
+    {
+      "id": "stack",
+      "lines": [
+        "It is all Cloudflare. Artifacts holds the app, every fork, and the decision record.",
+        "A Durable Object runs the board. Workflows run the gate and the decision. Workers AI runs the agents and the referee, and Worker Previews show each candidate."
+      ]
+    },
+    {
+      "id": "close",
+      "lines": [
+        "Steward deploys to your own account, with your repositories kept in the United States or the European Union. The code is open source.",
+        "Code is cheap now. Judgment is not. With Steward, every merge records who made the call, and why.",
+        {
+          "hold": 1.5
+        }
+      ]
+    }
+  ]
+}
