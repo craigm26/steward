@@ -125,8 +125,13 @@ export class DecideWorkflow extends WorkflowEntrypoint<Env, DecideParams> {
 			const g = grantFor({ judgment, generated_by: verdict.generated_by }, grants, agents, { hosted: true, caseState: { path: ev.state.path.id }, thresholds: project.thresholds });
 			const r = routeJudgment(project.thresholds, judgment);
 			if (!g || r.decision !== "act_alone") return { auto: false, grant: earned.id, why: `This path has auto-merge, but the judge's ${verdict.probability.toFixed(2)} is under its bar of ${earned.min_probability}, so the steward decides.` };
-			if (mustSample(project.thresholds, id)) return { auto: false, grant: g.id, why: sampledWhy("The judge", sampleFraction(project.thresholds)) };
-			return { auto: true, grant: g.id, why: `Merged by the judge under ${g.by}'s grant ${g.id}.` };
+			// PlatAtlas's sampler hashes its key with FNV-1a and no final mix, so short ids that differ in one character
+			// (d-t1, d-t2...) all land near 0 and would all be sampled. A SHA-256 of the id spreads them evenly.
+			const digest = new Uint8Array(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(id)));
+			const sampleKey = [...digest].map((b) => b.toString(16).padStart(2, "0")).join("");
+			if (mustSample(project.thresholds, sampleKey)) return { auto: false, grant: g.id, why: sampledWhy("The judge", sampleFraction(project.thresholds)) };
+			const owner = project.config.stewards.find((x) => x.key === g.by_key)?.name ?? g.by_key ?? "the steward";
+			return { auto: true, grant: g.id, why: `The judge merged it on its own, under the auto-merge ${owner}'s path earned (grant ${g.id}).` };
 		});
 
 		await step.do("put the card up", async () => {
