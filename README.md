@@ -29,7 +29,7 @@ flowchart LR
   R -- Workers Builds --> P[Preview per candidate]
   G -- done checks --> P
   G -- every candidate settled --> D[Decide<br/>Workflow]
-  D --> J[Judge<br/>Jev or the rubric]
+  D --> J[Judge<br/>Clef on Workers AI]
   D --> X[Referee<br/>Workers AI]
   D -- card --> S{{Steward}}
   S -- ship one, a reason if not the judge's --> M[Squash merge<br/>one commit per decision]
@@ -45,7 +45,7 @@ flowchart LR
 5. **The record.** Every decision is a file in a record repo in Artifacts, with a line in `ledger.jsonl`. Why-blame walks main's history in the Worker and opens the decision behind any line: the task, the rivals it beat, the judge, the objection, who decided and why.
 6. **The check.** Weekly, or on demand, the judge is replayed on the steward's past decisions for each path. A path whose judge matches the steward within the bar earns auto-merge as a grant; a check that finds drift suspends it. Only decisions a person made count as evidence. Even with auto-merge on, 1 in 10 still go to the steward.
 
-The judgment pieces come from [PlatAtlas](https://platatlas.com), unchanged: the judgment contract with its Jev and mock engines, the thresholds reader, the grants rules, and the check report (see [`vendor/platatlas`](vendor/platatlas)). The rules about done, the referee, budgets, committed plans and evidence-first cards follow Anthropic's [Claude-shaped science](https://www.anthropic.com/research/claude-shaped-science).
+The judge is [Clef](https://blog.cloudflare.com/clef-decision-models/), Cloudflare's decision model on Workers AI: it answers a typed question (which candidate ships, and which taste rule decided it) with calibrated probabilities in about half a second, through the same AI binding the agents use, so no key and nothing outside Cloudflare. The judgment pieces around it come from [PlatAtlas](https://platatlas.com), unchanged: the judgment contract (Jev's API, which Clef speaks), the thresholds reader, the grants rules, and the check report (see [`vendor/platatlas`](vendor/platatlas)). The rules about done, the referee, budgets, committed plans and evidence-first cards follow Anthropic's [Claude-shaped science](https://www.anthropic.com/research/claude-shaped-science).
 
 ## Run it on your own account
 
@@ -72,7 +72,7 @@ Then, once, in the dashboard: **Workers & Pages → larkspur-ap → Settings →
 
 Open the board, sign in with the steward key, open a task (or one of the two demo tasks), and press **Start the model agents**.
 
-To use Jev as the judge instead of the rubric, set `judge.engine: typesafe` in the record's `steward.yaml` and add the key: `npx wrangler secret put TYPESAFE_API_KEY`. A different judge can earn or lose auto-merge on different paths, so compare first: `TYPESAFE_API_KEY=… node scripts/judge-eval.mjs --engines mock,typesafe --live` replays both on every decision a person made and saves nothing.
+The judge's engine is `judge.engine` in the record's `steward.yaml`: `clef` (the default), `clef-flash` (faster, a little less accurate here), `typesafe` (Jev, with `npx wrangler secret put TYPESAFE_API_KEY`), or `mock` (a deterministic rubric that needs nothing). A different judge can earn or lose auto-merge on different paths, so compare before switching: `node scripts/judge-eval.mjs --engines mock,clef,clef-flash --live` replays each on every decision a person made and saves nothing. On the demo's 24 such decisions, Clef and the rubric fail the same checks (payment rules 1 of 10 against the steward, the invoice queue page 3 of 8, translations 0 of 6), but Clef agreed with the steward's overrule on the terms race that the rubric got wrong.
 
 ## Agents
 
@@ -97,7 +97,7 @@ To use Jev as the judge instead of the rubric, set `judge.engine: typesafe` in t
 
 - The demo company, Larkspur Garden Co., and all its data are made up.
 - The record starts with 22 synthetic past decisions (8 on payment rules, 8 on the invoice queue page, 6 on translations) so the check has history to replay on day one. They are marked `synthetic: true` and shown as synthetic.
-- Without a TypeSafe key the judge is a rubric that scores evidence against the playbook's taste rules. It is deterministic and labeled mock, and its confidence is a heuristic.
+- The judge is a model, Clef, and it can be wrong; the check exists to measure how often, path by path, against the steward. With `engine: mock` it is instead a rubric that scores evidence against the playbook's taste rules, deterministic and labeled mock, with a heuristic confidence.
 - The referee is a real model on Workers AI, and it can be wrong; the steward reads it, it decides nothing.
 - The explainer film is narrated by a synthetic voice (Aura-2 on Workers AI). Its product footage is the real UI replaying answers recorded during a live run.
 

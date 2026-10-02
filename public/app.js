@@ -131,6 +131,13 @@ function drawWho() {
 	drawIntro();
 }
 
+/** Which engine judged, in words: Clef is named as Cloudflare's model, the rubric as the mock it is. */
+function judgeLine(g) {
+	if (g?.backend === "mock") return "Judge: the rubric engine (mock), deterministic.";
+	if (g?.backend === "clef") return `Judge: ${g.model === "clef-flash" ? "Clef-flash" : "Clef"}, Cloudflare's decision model on Workers AI.`;
+	return `Judge: ${g?.backend ?? "unknown"} ${g?.model ?? ""}.`;
+}
+
 /** For someone arriving from a link: what this board is and where to look, until they dismiss it. */
 const INTRO = "steward.intro-seen";
 function drawIntro() {
@@ -501,7 +508,7 @@ async function viewDecision(id) {
 						"div",
 						{ class: "proposal" },
 						h("span", null, "The judge proposes ", h("b", null, `${agentOf(j.pick)}'s change`), ` at ${j.probability?.toFixed(2)}, by the rule: `, h("b", null, j.ruleText || "none")),
-						h("span", { class: "small muted" }, `${j.generated_by?.backend === "mock" ? "Judge: the rubric engine (mock), deterministic." : `Judge: ${j.generated_by?.backend} ${j.generated_by?.model ?? ""}.`} ${j.route?.why ?? ""}`),
+						h("span", { class: "small muted" }, `${judgeLine(j.generated_by)} ${j.route?.why ?? ""}`),
 					)
 				: h("p", { class: "muted" }, "The judge has not looked yet."),
 			shipped && verdict

@@ -2,7 +2,7 @@ import { describe, expect, test } from "vitest";
 import { diffLines, unified } from "../src/diff";
 import { globMatch, parsePlaybook, parseProject, parseThresholds } from "../src/record/playbook";
 import { RULES_PLAYBOOK, STEWARD_YAML, THRESHOLDS_YAML, UI_PLAYBOOK, demoHistory } from "../src/demo/record";
-import { judge, judgeRequest, rubricBackend } from "../src/judge";
+import { ClefJudgmentBackend, backendFor, judge, judgeRequest, rubricBackend } from "../src/judge";
 import { hedged, pick, runProbe } from "../src/probe";
 import { forkName, candidateBranch, previewName, slug } from "../src/artifacts";
 
@@ -81,6 +81,30 @@ describe("the judge's rubric (mock engine)", () => {
 			if (v.pick !== r.steward!.pick) differ++;
 		}
 		expect(differ).toBe(3);
+	});
+	test("Clef's answers become a verdict: its pick, its probabilities, the rule it named", async () => {
+		const h = demoHistory(new Date("2026-10-02T00:00:00Z"));
+		const state = h.records.find((r) => r.state.path.id === "rules")!.state;
+		const { options } = judgeRequest(state);
+		const [first, second] = [...options.keys()];
+		const calls: { model: string; inputs: { model: string; questions: Record<string, unknown> } }[] = [];
+		const runner = {
+			run: async (model: string, inputs: unknown) => {
+				calls.push({ model, inputs: inputs as never });
+				return { model: "clef", answers: { pick: { type: "choice", choice: second, probabilities: { [first!]: 0.2, [second!]: 0.8 }, confidence: 0.6 }, rule: { type: "choice", choice: "r2", probabilities: { r1: 0.3, r2: 0.7 }, confidence: 0.4 } }, usage: { input_tokens: 900, output_tokens: 0 } };
+			},
+		};
+		const v = await judge(new ClefJudgmentBackend(runner), state);
+		expect(calls[0]!.model).toBe("@cf/cloudflare/clef");
+		expect(Object.keys(calls[0]!.inputs.questions)).toEqual(["pick", "rule"]);
+		expect(v.pick).toBe(options.get(second!));
+		expect(v.probability).toBe(0.8);
+		expect(v.ruleText).toBe(state.path.taste[1]);
+		expect(v.generated_by).toMatchObject({ backend: "clef", model: "clef", source: "inferred", probability_basis: "calibrated" });
+	});
+	test("the clef engines need Workers AI, and say so", () => {
+		expect(() => backendFor("clef", {})).toThrow(/AI binding/);
+		expect(backendFor("clef-flash", { AI: { run: async () => ({}) } }).name).toBe("clef");
 	});
 	test("only gate-1 survivors are options", () => {
 		const h = demoHistory();

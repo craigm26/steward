@@ -15,7 +15,9 @@ stewards:
     name: Dana
     role: AP lead
 judge:
-  engine: mock
+  # clef or clef-flash: Cloudflare's decision models on Workers AI (no key); typesafe: Jev (needs TYPESAFE_API_KEY);
+  # mock: a deterministic rubric that runs anywhere.
+  engine: clef
   agent: judge
 `;
 
@@ -130,7 +132,9 @@ taste:
   - Every label is in the target language
 auto_merge:
   mode: earn
-  min_probability: 0.8
+  # A label is cheap to put right, and 1 in 10 decisions still come to the steward: the judge may merge alone when
+  # it is 70% sure. Its probabilities are calibrated (Clef), so 0.7 means right about 7 times in 10.
+  min_probability: 0.7
   until_days: 30
 max_agents: 6
 `;
@@ -287,13 +291,13 @@ export function demoHistory(now = new Date()): DemoHistory {
 			by_key: "dana",
 			agent: "Judge",
 			agent_key: "judge",
-			engine: "mock",
+			engine: "clef",
 			label: "ship",
 			min_probability: 0.8,
 			when: { path: "ui" },
 			until: new Date(now.getTime() + 12 * 864e5).toISOString().slice(0, 10),
 			note: "Earned by an earlier check: 5 past decisions the judge would have merged on its own, none wrong (synthetic)",
-			evidence: { would_sign: 5, wrong: 0, measured_at: earned, model: "mock" },
+			evidence: { would_sign: 5, wrong: 0, measured_at: earned, model: "clef" },
 			synthetic: true,
 		},
 	];

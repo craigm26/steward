@@ -9,6 +9,7 @@ import { commitFiles, deleteBranches, listBranches, resetBranch } from "./git/op
 import { runCheck } from "./check";
 import { demoRecordFiles } from "./demo/record";
 import { RecordStore, jsonl } from "./record/store";
+import { backendFor, judge, type DecisionState } from "./judge";
 import { globMatch, parseDoneCheck, type DoneCheck, type Playbook } from "./record/playbook";
 import { DEMO_TASKS } from "./demo/tasks";
 import { forgetProject, loadProject } from "./project";
@@ -357,6 +358,19 @@ export async function handleApi(request: Request, env: Env, ctx: ExecutionContex
 			});
 			forgetProject();
 			return json({ repo: env.RECORD_REPO, created, seeded: !!written, commit: written?.commit ?? null, files: files.length });
+		}
+		if (m === "POST" && p === "/api/admin/test-judge") {
+			// Asks a judge engine about a decision already in the record, and saves nothing: a way to try an engine on
+			// real evidence before switching the record to it.
+			need(w, "admin");
+			const req = await body<{ decision: string; engine?: string }>(request);
+			const text = await new RecordStore(env, env.RECORD_REPO).text(`decisions/${req.decision}.json`);
+			if (!text) throw new HttpError(404, `no decision ${req.decision} in the record`);
+			const rec = JSON.parse(text) as { state: DecisionState };
+			const engine = req.engine ?? (await loadProject(env)).config.judge.engine;
+			const t0 = Date.now();
+			const v = await judge(backendFor(engine, env), rec.state);
+			return json({ decision: req.decision, engine, ms: Date.now() - t0, pick: v.pick, probability: v.probability, probabilities: v.probabilities, rule: v.ruleText, generated_by: v.generated_by });
 		}
 		if (m === "POST" && p === "/api/admin/test-referee") {
 			need(w, "admin");

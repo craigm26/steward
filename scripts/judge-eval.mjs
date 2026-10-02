@@ -2,12 +2,13 @@
 // Compares judge engines on decisions a person made: for each one, which candidate each engine picks and whether
 // that matches the steward. The same question the weekly check asks, with nothing saved. Covers the demo record's
 // history (synthetic, as seeded) and, with --live, decisions read from a running Steward's record.
-//   node scripts/judge-eval.mjs                          mock only
+//   node scripts/judge-eval.mjs                                    mock only
+//   node scripts/judge-eval.mjs --engines mock,clef,clef-flash --live    Clef over Workers AI's REST API (wrangler login)
 //   TYPESAFE_API_KEY=... node scripts/judge-eval.mjs --engines mock,typesafe --live
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { demoHistory } from "../src/demo/record.ts";
-import { backendFor, judge } from "../src/judge.ts";
+import { backendFor, judge, restModelRunner } from "../src/judge.ts";
 
 const root = new URL("..", import.meta.url).pathname;
 const arg = (name, fallback) => {
@@ -37,15 +38,23 @@ async function decisions() {
 	return out;
 }
 
+/** Workers AI from here: CLOUDFLARE_ACCOUNT_ID and CLOUDFLARE_API_TOKEN, or wrangler's login and its first account. */
+async function clefRunner() {
+	const token = process.env.CLOUDFLARE_API_TOKEN ?? /^oauth_token = "(.*)"$/m.exec(readFileSync(join(process.env.HOME, ".wrangler/config/default.toml"), "utf8"))?.[1];
+	const account = process.env.CLOUDFLARE_ACCOUNT_ID ?? (await (await fetch("https://api.cloudflare.com/client/v4/accounts", { headers: { authorization: `Bearer ${token}` } })).json()).result?.[0]?.id;
+	return restModelRunner(account, token);
+}
+
 const rows = await decisions();
+const env = { ...process.env, ...(engines.some((e) => e.startsWith("clef")) ? { CLEF_RUNNER: await clefRunner() } : {}) };
 const results = {};
 for (const engine of engines) {
-	const backend = backendFor(engine, process.env);
+	const backend = backendFor(engine, env);
 	results[engine] = [];
 	for (const d of rows) {
 		try {
 			const v = await judge(backend, d.state);
-			results[engine].push({ pick: v.pick, p: v.probability, rule: v.ruleText, model: v.generated_by.model, cost: v.usage?.cost_usd ?? 0 });
+			results[engine].push({ pick: v.pick, p: v.probability, rule: v.ruleText, model: v.generated_by.model, cost: v.usage?.cost_usd ?? 0, ms: v.usage?.ms ?? 0 });
 		} catch (e) {
 			results[engine].push({ error: e.message.slice(0, 120) });
 		}
@@ -73,5 +82,6 @@ for (const e of engines) {
 		else if (r.pick !== d.pick) by[d.path].miss++;
 	});
 	const cost = results[e].reduce((a, r) => a + (r.cost ?? 0), 0);
-	console.log(`${e.padEnd(10)} ${Object.entries(by).map(([p, s]) => `${p} ${s.miss}/${s.n}${s.err ? ` (${s.err} errors)` : ""}`).join(", ")}${cost ? `, $${cost.toFixed(6)}` : ""}${results[e].find((r) => r.model) ? `, model ${results[e].find((r) => r.model).model}` : ""}`);
+	const ms = results[e].filter((r) => r.ms).map((r) => r.ms).sort((a, b) => a - b);
+	console.log(`${e.padEnd(10)} ${Object.entries(by).map(([p, s]) => `${p} ${s.miss}/${s.n}${s.err ? ` (${s.err} errors)` : ""}`).join(", ")}${cost ? `, $${cost.toFixed(6)}` : ""}${ms.length ? `, median ${ms[Math.floor(ms.length / 2)]} ms` : ""}${results[e].find((r) => r.model) ? `, model ${results[e].find((r) => r.model).model}` : ""}`);
 }

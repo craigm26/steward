@@ -1,14 +1,18 @@
 // The judge: proposes one candidate per decision and names the taste rule that decided it. It never decides; the
-// steward does, unless the path has earned auto-merge. Two engines share PlatAtlas's judgment contract:
-//   typesafe  Jev over HTTP (needs TYPESAFE_API_KEY)
-//   mock      a rubric that scores the evidence by the playbook's taste rules, deterministic and free
+// steward does, unless the path has earned auto-merge. Every engine speaks PlatAtlas's judgment contract (Jev's API):
+//   clef, clef-flash  Cloudflare's decision models on Workers AI, through the AI binding; no key
+//   typesafe          Jev over HTTP (needs TYPESAFE_API_KEY)
+//   mock              a rubric that scores the evidence by the playbook's taste rules, deterministic and free
 // Honesty canon: every verdict carries generated_by and is inferred.
 
 import {
+	JudgmentError,
 	MockJudgmentBackend,
 	TypeSafeJudgmentBackend,
 	parseEngineSpec,
+	validateRequest,
 	type ChoiceAnswer,
+	type JudgmentAnswer,
 	type JudgmentBackend,
 	type JudgmentQuestion,
 	type JudgmentRequest,
@@ -45,8 +49,67 @@ export interface JudgeVerdict {
 	eligible: string[];
 }
 
+/** Runs a Workers AI model: the AI binding inside a Worker, or the REST API from a script. */
+export interface ModelRunner {
+	run(model: string, inputs: unknown): Promise<unknown>;
+}
+
 export interface JudgeEnv {
 	TYPESAFE_API_KEY?: string;
+	// Loosely typed so the Worker's Ai binding fits; Steward only calls run(model, inputs).
+	// eslint-disable-next-line @typescript-eslint/no-explicit-any
+	AI?: { run: (...args: any[]) => Promise<unknown> };
+	/** Overrides AI for the clef engines (scripts outside a Worker pass a REST runner). */
+	CLEF_RUNNER?: ModelRunner;
+}
+
+const CLEF_MODELS = ["clef", "clef-flash"];
+
+/** Clef on Workers AI. It answers the same questions as Jev, with calibrated probabilities, in a few hundred ms. */
+export class ClefJudgmentBackend implements JudgmentBackend {
+	readonly name = "clef";
+	readonly model: string;
+	readonly runner: ModelRunner;
+	constructor(runner: ModelRunner, model = "clef") {
+		if (!CLEF_MODELS.includes(model)) throw new JudgmentError(`unknown Clef model ${model} (${CLEF_MODELS.join(" | ")})`);
+		this.runner = runner;
+		this.model = model;
+	}
+
+	async judge(req: JudgmentRequest): Promise<JudgmentResult> {
+		validateRequest(req);
+		const t0 = Date.now();
+		let out: { model?: string; answers?: Record<string, JudgmentAnswer>; usage?: { input_tokens?: number; output_tokens?: number } };
+		try {
+			out = (await this.runner.run(`@cf/cloudflare/${this.model}`, { model: this.model, state: req.state, questions: req.questions })) as typeof out;
+		} catch (e) {
+			throw new JudgmentError(`clef request failed: ${(e as Error).message}`, undefined, true);
+		}
+		if (!out?.answers) throw new JudgmentError("clef returned no answers", undefined, true);
+		const model = out.model ?? this.model;
+		return {
+			model,
+			answers: out.answers,
+			usage: { input_tokens: out.usage?.input_tokens ?? 0, output_tokens: out.usage?.output_tokens ?? 0, ms: Date.now() - t0 },
+			generated_by: { backend: "clef", model, source: "inferred", probability_basis: "calibrated" },
+		};
+	}
+}
+
+/** Workers AI over REST, for scripts that run outside a Worker: an account id and an API (or wrangler login) token. */
+export function restModelRunner(accountId: string, token: string): ModelRunner {
+	return {
+		async run(model, inputs) {
+			const res = await fetch(`https://api.cloudflare.com/client/v4/accounts/${accountId}/ai/run/${model}`, {
+				method: "POST",
+				headers: { authorization: `Bearer ${token}`, "content-type": "application/json" },
+				body: JSON.stringify(inputs),
+			});
+			const json = (await res.json().catch(() => ({}))) as { result?: unknown; errors?: { message?: string }[] };
+			if (!res.ok) throw new Error(`Workers AI ${res.status}: ${json.errors?.[0]?.message ?? "no detail"}`);
+			return json.result;
+		},
+	};
 }
 
 /** Only candidates that cleared gate 1 can be picked. */
@@ -176,13 +239,19 @@ export function rubricBackend(): JudgmentBackend {
 }
 
 export function backendFor(engine: string, env: JudgeEnv): JudgmentBackend {
+	if (CLEF_MODELS.includes(engine.trim())) {
+		const ai = env.AI;
+		const runner = env.CLEF_RUNNER ?? (ai ? { run: (model: string, inputs: unknown) => ai.run(model, inputs) } : undefined);
+		if (!runner) throw new Error(`the ${engine} engine runs on Workers AI and needs the AI binding`);
+		return new ClefJudgmentBackend(runner, engine.trim());
+	}
 	const spec = parseEngineSpec(engine);
 	if (spec.backend === "mock") return rubricBackend();
 	if (spec.backend === "typesafe") {
 		if (!env.TYPESAFE_API_KEY) throw new Error("the typesafe engine needs the TYPESAFE_API_KEY secret");
 		return new TypeSafeJudgmentBackend({ apiKey: env.TYPESAFE_API_KEY, model: spec.model });
 	}
-	throw new Error(`engine ${spec.backend} does not run in a Worker; use mock or typesafe`);
+	throw new Error(`engine ${spec.backend} does not run in a Worker; use clef, clef-flash, typesafe or mock`);
 }
 
 /** Ask the judge about one decision. */
