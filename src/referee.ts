@@ -11,7 +11,13 @@ export interface Objection {
 	generated_by: { backend: string; model: string; source: "inferred" };
 }
 
-export const DEFAULT_REFEREE_MODEL = "@cf/moonshotai/kimi-k2.7-code";
+export const DEFAULT_REFEREE_MODEL = "@cf/deepseek-ai/deepseek-v4-flash-0731";
+
+/** Reasoning models spend their whole budget thinking unless told not to; the referee wants the answer. */
+function quiet(model: string): Record<string, unknown> {
+	if (/glm/i.test(model)) return { reasoning_effort: "low" };
+	return { chat_template_kwargs: { enable_thinking: false } };
+}
 
 function textOf(result: unknown): string {
 	const r = result as Record<string, any>;
@@ -58,8 +64,9 @@ export async function referee(ai: Ai | undefined, model: string, state: Decision
 								].join("\n\n"),
 							},
 						],
-						max_tokens: 220,
+						max_tokens: 400,
 						temperature: 0.2,
+						...quiet(model),
 					} as never);
 					const text = textOf(result).replace(/\s+/g, " ").trim();
 					if (text) return { candidate: c.id, objection: text.slice(0, 600), generated_by: { backend: "workers-ai", model, source: "inferred" } };

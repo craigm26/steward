@@ -194,3 +194,35 @@ export async function withRetry<T>(fn: () => Promise<T>, attempts = 4): Promise<
 		}
 	}
 }
+
+/** Branch names on a remote under `prefix` (e.g. "refs/heads/cand/"). */
+export async function listBranches(remote: Remote, prefix = "refs/heads/"): Promise<{ ref: string; oid: string }[]> {
+	const refs = await git.listServerRefs({ http, url: remote.url, prefix, headers: auth(remote) });
+	return refs.map((r) => ({ ref: r.ref, oid: r.oid }));
+}
+
+/** Deletes branches on a remote. isomorphic-git wants a local ref even to delete a remote one, so each is
+ *  written locally (pointing at the oid the remote reported) first. */
+export async function deleteBranches(remote: Remote, refs: { ref: string; oid: string }[]): Promise<number> {
+	if (!refs.length) return 0;
+	const fs = await fresh();
+	await git.addRemote({ fs, dir: DIR, remote: "target", url: remote.url });
+	let n = 0;
+	for (const { ref, oid } of refs) {
+		await git.writeRef({ fs, dir: DIR, ref, value: oid, force: true });
+		await git.push({ fs, http, dir: DIR, remote: "target", ref, remoteRef: ref, delete: true, headers: auth(remote) });
+		n++;
+	}
+	return n;
+}
+
+/** Force-moves `branch` on a remote to `commit` (which must already be in that repo's history). */
+export async function resetBranch(remote: Remote, branch: string, commit: string): Promise<void> {
+	const fs = await fresh();
+	await git.addRemote({ fs, dir: DIR, remote: "target", url: remote.url });
+	await git.fetch({ fs, http, dir: DIR, remote: "target", ref: branch, singleBranch: true, tags: false, headers: auth(remote) });
+	await git.writeRef({ fs, dir: DIR, ref: "refs/heads/reset", value: commit, force: true });
+	const result = await git.push({ fs, http, dir: DIR, remote: "target", ref: "refs/heads/reset", remoteRef: `refs/heads/${branch}`, force: true, headers: auth(remote) });
+	const bad = rejectedRefs(result);
+	if (bad) throw new Error(`reset push failed: ${bad}`);
+}

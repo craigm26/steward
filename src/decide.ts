@@ -67,13 +67,32 @@ function mergeMessage(state: DecisionState, pick: CandidateEvidence, v: JudgeVer
 	].join("\n");
 }
 
-export class DecideWorkflow extends WorkflowEntrypoint<Env, { decision: string }> {
-	async run(event: Readonly<WorkflowEvent<{ decision: string }>>, step: WorkflowStep) {
+type Evidence = { state: DecisionState; task: string; engine: string; judgeAgent: string; steward: string; stewardName: string; refereeModel: string };
+type Decided = StewardVerdict & { kind: "person" | "agent"; verdict: "agree" | "overrule" | "auto"; grant?: string };
+export type DecideParams = { decision: string; verdict?: StewardVerdict };
+
+/** What the card keeps about the judging, so the merge run (started by the steward's click) sees what the judge saw. */
+export type SavedJudge = JudgeVerdict & { route: { auto: boolean; why: string; grant?: string }; ev: Evidence };
+
+export class DecideWorkflow extends WorkflowEntrypoint<Env, DecideParams> {
+	async run(event: Readonly<WorkflowEvent<DecideParams>>, step: WorkflowStep) {
 		const env = this.env;
 		const id = event.payload.decision;
 		const board = boardFor(env);
 
-		const ev = await step.do("gather the evidence", async () => {
+		// The steward decided (the API already moved the card to merging): merge what the card showed.
+		if (event.payload.verdict) {
+			const got = event.payload.verdict;
+			const card = await step.do("read the card", async () => {
+				const d = await board.decision(id);
+				if (!d?.judge) throw new Error(`decision ${id} has no card`);
+				return { judged: d.judge as SavedJudge, objections: (d.referee ?? []) as Objection[] };
+			});
+			const decided: Decided = { ...got, kind: "person", verdict: got.pick === card.judged.pick ? "agree" : "overrule" };
+			return this.merge(step, id, card.judged.ev, card.judged, card.objections, decided);
+		}
+
+		const ev: Evidence = await step.do("gather the evidence", async () => {
 			const d = await board.decision(id);
 			if (!d) throw new Error(`no decision ${id}`);
 			const task = await board.task(d.task);
@@ -101,48 +120,36 @@ export class DecideWorkflow extends WorkflowEntrypoint<Env, { decision: string }
 			const grants = foldGrants(project.grants, now);
 			const judgment = { label: "ship", probability: verdict.probability };
 			const agents = [{ key: ev.judgeAgent, name: "Judge", stage: "suggest", steward: ev.steward }];
+			const earned = grants.find((x) => x.status === "active" && x.label === "ship" && x.when?.path === ev.state.path.id);
+			if (!earned) return { auto: false, why: "This path has not earned auto-merge, so the steward decides." };
 			const g = grantFor({ judgment, generated_by: verdict.generated_by }, grants, agents, { hosted: true, caseState: { path: ev.state.path.id }, thresholds: project.thresholds });
 			const r = routeJudgment(project.thresholds, judgment);
-			if (!g) return { auto: false as const, why: "This path has not earned auto-merge, so the steward decides." };
-			if (r.decision !== "act_alone") return { auto: false as const, why: `The judge's ${verdict.probability.toFixed(2)} is under the bar, so the steward decides.` };
-			if (mustSample(project.thresholds, id)) return { auto: false as const, grant: g.id, why: sampledWhy("The judge", sampleFraction(project.thresholds)) };
-			return { auto: true as const, grant: g.id, why: `Merged by the judge under ${g.by}'s grant ${g.id}.` };
+			if (!g || r.decision !== "act_alone") return { auto: false, grant: earned.id, why: `This path has auto-merge, but the judge's ${verdict.probability.toFixed(2)} is under its bar of ${earned.min_probability}, so the steward decides.` };
+			if (mustSample(project.thresholds, id)) return { auto: false, grant: g.id, why: sampledWhy("The judge", sampleFraction(project.thresholds)) };
+			return { auto: true, grant: g.id, why: `Merged by the judge under ${g.by}'s grant ${g.id}.` };
 		});
 
 		await step.do("put the card up", async () => {
+			const saved: SavedJudge = { ...verdict, route: routed, ev };
 			await board.advanceDecision(
 				id,
 				["judging"],
 				routed.auto ? "merging" : "ready",
-				{ judge: { ...verdict, route: routed }, referee: objections },
+				{ judge: saved, referee: objections },
 				{ text: routed.auto ? `The judge merges ${verdict.pick.split("/")[1]}'s candidate on its own (grant ${routed.grant})` : `Decision ${id} is ready: the judge proposes ${verdict.pick.split("/")[1]}'s candidate`, data: { pick: verdict.pick, auto: routed.auto } },
 			);
 			return true;
 		});
 
-		let decided: StewardVerdict & { kind: "person" | "agent"; verdict: "agree" | "overrule" | "auto"; grant?: string };
-		if (routed.auto) {
-			decided = { pick: verdict.pick, by: ev.judgeAgent, by_name: "Judge", at: new Date().toISOString(), kind: "agent", verdict: "auto", grant: routed.grant };
-		} else {
-			let got: StewardVerdict;
-			try {
-				got = (await step.waitForEvent<StewardVerdict>("the steward decides", { type: "verdict", timeout: "7 days" })).payload as StewardVerdict;
-			} catch {
-				await step.do("expire the card", async () => {
-					await board.advanceDecision(id, ["ready"], "closed", {}, { text: `Decision ${id} closed: no verdict in 7 days` });
-					return true;
-				});
-				return { expired: true };
-			}
-			decided = { ...got, kind: "person", verdict: got.pick === verdict.pick ? "agree" : "overrule" };
-			await step.do("note the verdict", async () => {
-				await board.advanceDecision(id, ["ready"], "merging", { verdict: decided }, {
-					text: decided.verdict === "agree" ? `${decided.by_name} agreed: ship ${decided.pick.split("/")[1]}'s candidate` : `${decided.by_name} overruled the judge: ship ${decided.pick.split("/")[1]}'s candidate. ${decided.reason}`,
-				});
-				return true;
-			});
-		}
+		if (!routed.auto) return { ready: true, pick: verdict.pick };
+		const decided: Decided = { pick: verdict.pick, by: ev.judgeAgent, by_name: "Judge", at: new Date().toISOString(), kind: "agent", verdict: "auto", grant: routed.grant };
+		return this.merge(step, id, ev, verdict, objections, decided);
+	}
 
+	/** Squash-merge the chosen candidate, write the decision and its ledger line, close every fork. */
+	private async merge(step: WorkflowStep, id: string, ev: Evidence, verdict: JudgeVerdict, objections: Objection[], decided: Decided) {
+		const env = this.env;
+		const board = boardFor(env);
 		const chosen = ev.state.candidates.find((c) => c.id === decided.pick);
 		if (!chosen) throw new Error(`the chosen candidate ${decided.pick} is not in decision ${id}`);
 		const objection = objections.find((o) => o.candidate === chosen.id);

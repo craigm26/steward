@@ -15,13 +15,14 @@ export const VENDORS = [
 	{ id: "v-summit", name: "Summit Greenhouse Glass", accountOnFile: "9104", bankChangedAt: null, previousAccount: null },
 ];
 
-// Invoices waiting to be paid. `payToAccount` is the account printed on the invoice.
+// Invoices waiting to be paid. `payToAccount` is the account printed on the invoice; `termsDays` is when payment is
+// due, in days after the invoice (Larkspur's usual terms are net 30).
 export const INVOICES = [
-	{ id: "INV-1041", vendorId: "v-arbor", vendorInvoiceNo: "AR-2207", amount: 4860.0, payToAccount: "4417", po: "PO-5512", received: "2026-09-29" },
-	{ id: "INV-1042", vendorId: "v-delta", vendorInvoiceNo: "DD-0913", amount: 12300.0, payToAccount: "0067", po: "PO-5520", received: "2026-09-30" },
-	{ id: "INV-1043", vendorId: "v-terrace", vendorInvoiceNo: "TS-7781", amount: 31750.0, payToAccount: "2290", po: null, received: "2026-09-30" },
-	{ id: "INV-1044", vendorId: "v-meadow", vendorInvoiceNo: "MS-1150", amount: 2140.5, payToAccount: "5531", po: "PO-5524", received: "2026-10-01" },
-	{ id: "INV-1045", vendorId: "v-arbor", vendorInvoiceNo: "AR-2207", amount: 4860.0, payToAccount: "4417", po: "PO-5512", received: "2026-10-01" },
-	{ id: "INV-1046", vendorId: "v-coastal", vendorInvoiceNo: "CS-4402", amount: 7410.0, payToAccount: "7720", po: "PO-5527", received: "2026-10-01" },
-	{ id: "INV-1047", vendorId: "v-summit", vendorInvoiceNo: "SG-0388", amount: 18900.0, payToAccount: "9999", po: "PO-5531", received: "2026-10-02" },
+	{ id: "INV-1041", vendorId: "v-arbor", vendorInvoiceNo: "AR-2207", amount: 4860.0, payToAccount: "4417", po: "PO-5512", received: "2026-09-29", termsDays: 30 },
+	{ id: "INV-1042", vendorId: "v-delta", vendorInvoiceNo: "DD-0913", amount: 12300.0, payToAccount: "0067", po: "PO-5520", received: "2026-09-30", termsDays: 30 },
+	{ id: "INV-1043", vendorId: "v-terrace", vendorInvoiceNo: "TS-7781", amount: 31750.0, payToAccount: "2290", po: null, received: "2026-09-30", termsDays: 30 },
+	{ id: "INV-1044", vendorId: "v-meadow", vendorInvoiceNo: "MS-1150", amount: 2140.5, payToAccount: "5531", po: "PO-5524", received: "2026-10-01", termsDays: 90 },
+	{ id: "INV-1045", vendorId: "v-arbor", vendorInvoiceNo: "AR-2207", amount: 4860.0, payToAccount: "4417", po: "PO-5512", received: "2026-10-01", termsDays: 30 },
+	{ id: "INV-1046", vendorId: "v-coastal", vendorInvoiceNo: "CS-4402", amount: 7410.0, payToAccount: "7720", po: "PO-5527", received: "2026-10-01", termsDays: 45 },
+	{ id: "INV-1047", vendorId: "v-summit", vendorInvoiceNo: "SG-0388", amount: 18900.0, payToAccount: "9999", po: "PO-5531", received: "2026-10-02", termsDays: 30 },
 ];

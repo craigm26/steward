@@ -4,16 +4,19 @@
 //   steward  open tasks, decide a card, decide now, run a check
 //   admin    seed the demo, reset the board, register agents
 
-import { ensureFork, getRepo, previewUrl, remoteFor, slug } from "./artifacts";
-import { commitFiles } from "./git/ops";
+import { ensureFork, getRepo, previewUrl, remoteFor, slug, whenReady } from "./artifacts";
+import { commitFiles, deleteBranches, listBranches, resetBranch } from "./git/ops";
 import { runCheck } from "./check";
 import { demoRecordFiles } from "./demo/record";
 import { RecordStore, jsonl } from "./record/store";
-import { globMatch, type Playbook } from "./record/playbook";
+import { globMatch, parseDoneCheck, type DoneCheck, type Playbook } from "./record/playbook";
+import { DEMO_TASKS } from "./demo/tasks";
 import { forgetProject, loadProject } from "./project";
 import { blame, listFiles } from "./blame";
 import { closeFork, maybeDecide } from "./lifecycle";
 import { gateForHead, STEWARD_EMAIL } from "./gate";
+import { gateVerdict } from "./verdict";
+import { DEFAULT_REFEREE_MODEL } from "./referee";
 import { foldGrants } from "../vendor/platatlas/grants.ts";
 import type { Env } from "./index";
 import type { LedgerLine } from "./check";
@@ -57,14 +60,18 @@ const need = (w: Who, ...kinds: Who["kind"][]) => {
 	if (!kinds.includes(w.kind)) throw new HttpError(w.kind === "public" ? 401 : 403, w.kind === "public" ? "sign in with a steward or agent key" : "not allowed for this key");
 };
 
-function taskBrief(task: { id: string; title: string; description: string }, pb: Playbook, files: string[], agent: string) {
+function taskBrief(task: { id: string; title: string; description: string; done: DoneCheck[] }, pb: Playbook, files: string[], agent: string) {
+	const probe = (d: DoneCheck) => (d.kind === "probe" ? ` (GET ${d.get}${Object.keys(d.expect).length ? `, expect ${Object.entries(d.expect).map(([k, v]) => `${k}=${v}`).join(", ")}` : ""}${d.contains ? `, contains "${d.contains}"` : ""})` : "");
 	return [
 		`# Task ${task.id}: ${task.title}`,
 		"",
 		task.description,
 		"",
 		"## Done means: every check must pass",
-		...pb.done.map((d) => `- ${d.name}`),
+		"This task:",
+		...task.done.map((d) => `- ${d.name}${probe(d)}`),
+		`Every change on the ${pb.path} path:`,
+		...pb.done.map((d) => `- ${d.name}${probe(d)}`),
 		"",
 		"## Taste: how a passing candidate is chosen",
 		...pb.taste.map((t) => `- ${t}`),
@@ -101,7 +108,11 @@ async function claim(env: Env, agent: string, taskId: string, req: { files?: str
 	if (!files.length) throw new HttpError(400, "claim at least one file");
 
 	const fork = await ensureFork(env, env.PROJECT, taskId, agent, `${agent} working on ${task.title}`);
-	if (fork.created) {
+	const seeded = await whenReady(async () => {
+		using f = await getRepo(env, fork.name);
+		return !!(await f.readFile({ ref: "main", path: ".steward/TASK.md" }));
+	});
+	if (!seeded) {
 		const seed = await remoteFor(env, fork.name, "write", 300);
 		await commitFiles({
 			repo: seed,
@@ -128,7 +139,7 @@ async function claim(env: Env, agent: string, taskId: string, req: { files?: str
 		elsewhere: result.elsewhere,
 		branch,
 		preview_url: previewUrl(env, project.config.worker, branch),
-		done: pb.done.map((d) => d.name),
+		done: [...task.done, ...pb.done].map((d) => d.name),
 		taste: pb.taste,
 		budget: pb.budget,
 		next: "Clone the remote with the token, keep .steward/PLAN.md current, push to main, then POST /api/tasks/:id/done with a summary.",
@@ -260,7 +271,18 @@ export async function handleApi(request: Request, env: Env, ctx: ExecutionContex
 			const cand = await board.candidate(id);
 			if (!cand) throw new HttpError(404, `${agent} has not claimed task ${r[1]}`);
 			if (!req.summary?.trim()) throw new HttpError(400, "say what works in summary");
-			await board.updateCandidate(id, { done: true, summary: req.summary.trim().slice(0, 2000), tokens_used: Math.max(cand.tokens_used, Number(req.tokens_used ?? 0)) }, { kind: "done", text: `${agent} says done`, data: { summary: req.summary.slice(0, 300) } });
+			const after = await board.updateCandidate(id, { done: true, summary: req.summary.trim().slice(0, 2000), tokens_used: Math.max(cand.tokens_used, Number(req.tokens_used ?? 0)) }, { kind: "done", text: `${agent} says done`, data: { summary: req.summary.slice(0, 300) } });
+			using fork = await getRepo(env, cand.fork);
+			const [tip] = await fork.log({ ref: "main", limit: 1 });
+			if (!tip) throw new HttpError(409, "push your work to your fork's main first");
+			// A gate run already on this commit reads "done" when it records; checks already finished are re-read.
+			if (await board.gateBusy(id, tip.hash)) return json({ ok: true, note: "Gate 1 is already checking your latest commit; it will see that you are done." });
+			if (after.commit === tip.hash && after.checks.length && ["working", "bounced"].includes(after.status)) {
+				const v = gateVerdict(after.checks, true, after.summary);
+				await board.updateCandidate(id, v, { kind: v.status === "passed" ? "passed" : v.status === "bounced" ? "bounce" : "checked", text: v.status === "passed" ? `${agent} passed gate 1 (${after.checks.length} checks)` : v.status === "bounced" ? `${agent} claimed done and failed gate 1: bounced` : `${agent}: ${v.note}` });
+				if (v.status !== "working") ctx.waitUntil(maybeDecide(env, after.decision).then(() => undefined));
+				return json({ ok: true, status: v.status, note: v.note });
+			}
 			const instance = await gateForHead(env, cand.fork, "done");
 			return json({ ok: true, gate: instance.id, note: "Gate 1 is checking your latest commit." });
 		}
@@ -285,11 +307,33 @@ export async function handleApi(request: Request, env: Env, ctx: ExecutionContex
 		// ---------------------------------------------------------------- steward
 		if (m === "POST" && p === "/api/tasks") {
 			need(w, "admin");
-			const req = await body<{ id?: string; title: string; description?: string; path: string }>(request);
+			const req = await body<{ id?: string; title: string; description?: string; path: string; done?: unknown[] }>(request);
 			const project = await loadProject(env);
 			if (!project.playbooks[req.path]) throw new HttpError(400, `no playbook for path ${req.path}; paths: ${Object.keys(project.playbooks).join(", ")}`);
 			if (!req.title?.trim()) throw new HttpError(400, "title is required");
-			return json(await board.createTask({ id: req.id ? slug(req.id, 24) : undefined, title: req.title.trim(), description: (req.description ?? req.title).trim(), path: req.path, by: project.playbooks[req.path]!.steward }));
+			let done: DoneCheck[];
+			try {
+				done = (req.done ?? []).map((d, i) => parseDoneCheck(d, `done[${i}]`));
+			} catch (e) {
+				throw new HttpError(400, (e as Error).message);
+			}
+			try {
+				return json(await board.createTask({ id: req.id ? slug(req.id, 24) : undefined, title: req.title.trim(), description: (req.description ?? req.title).trim(), path: req.path, by: project.playbooks[req.path]!.steward, done }));
+			} catch (e) {
+				throw new HttpError(409, (e as Error).message);
+			}
+		}
+		if (m === "POST" && p === "/api/admin/demo-task") {
+			need(w, "admin");
+			const req = await body<{ name: string; id?: string }>(request);
+			const t = DEMO_TASKS[req.name];
+			if (!t) throw new HttpError(400, `demo tasks: ${Object.keys(DEMO_TASKS).join(", ")}`);
+			const project = await loadProject(env);
+			try {
+				return json(await board.createTask({ ...t, id: req.id ?? t.id, by: project.playbooks[t.path]?.steward ?? "steward", done: t.done.map((d, i) => parseDoneCheck(d, `${req.name} done[${i}]`)) }));
+			} catch (e) {
+				throw new HttpError(409, (e as Error).message);
+			}
 		}
 		if (m === "POST" && (r = p.match(/^\/api\/decisions\/([A-Za-z0-9._-]+)\/decide$/))) {
 			need(w, "admin");
@@ -306,9 +350,16 @@ export async function handleApi(request: Request, env: Env, ctx: ExecutionContex
 			const stewardKey = req.by ?? project.playbooks[d.path]?.steward ?? "steward";
 			const steward = project.config.stewards.find((s) => s.key === stewardKey);
 			const verdict: StewardVerdict = { pick: req.pick, ...(req.reason?.trim() ? { reason: req.reason.trim() } : {}), by: stewardKey, by_name: steward?.name ?? stewardKey, at: new Date().toISOString() };
-			const instance = await env.DECIDE.get(d.id);
-			await instance.sendEvent({ type: "verdict", payload: verdict });
-			return json({ ok: true, verdict });
+			// Moving ready -> merging happens once, so a double click never merges twice.
+			const agree = req.pick === judgePick;
+			const moved = await board.advanceDecision(d.id, ["ready"], "merging", { verdict: { ...verdict, kind: "person", verdict: agree ? "agree" : "overrule" } }, {
+				text: agree ? `${verdict.by_name} agreed: ship ${req.pick.split("/")[1]}'s candidate` : `${verdict.by_name} overruled the judge: ship ${req.pick.split("/")[1]}'s candidate. ${verdict.reason}`,
+			});
+			if (!moved) throw new HttpError(409, `decision ${d.id} was decided already`);
+			const run = `${d.id}-merge-${Date.now().toString(36)}`;
+			await env.DECIDE.create({ id: run, params: { decision: d.id, verdict } });
+			await board.setDecisionWorkflow(d.id, run);
+			return json({ ok: true, verdict, run });
 		}
 		if (m === "POST" && (r = p.match(/^\/api\/decisions\/([A-Za-z0-9._-]+)\/decide-now$/))) {
 			need(w, "admin");
@@ -325,6 +376,14 @@ export async function handleApi(request: Request, env: Env, ctx: ExecutionContex
 		}
 
 		// ---------------------------------------------------------------- admin
+		if (m === "POST" && p === "/api/builds") {
+			// A build system reports a commit's build (the preview runner today; Workers Builds events later).
+			need(w, "admin");
+			const req = await body<{ commit: string; ok: boolean; detail?: string; url?: string }>(request);
+			if (!/^[0-9a-f]{40}$/.test(req.commit ?? "")) throw new HttpError(400, "commit must be a 40-character sha");
+			await board.reportBuild(req.commit, !!req.ok, req.detail?.slice(0, 2000) ?? null, req.url ?? null);
+			return json({ ok: true });
+		}
 		if (m === "POST" && p === "/api/agents") {
 			need(w, "admin");
 			const req = await body<{ name: string; kind?: string }>(request);
@@ -354,6 +413,61 @@ export async function handleApi(request: Request, env: Env, ctx: ExecutionContex
 			});
 			forgetProject();
 			return json({ repo: env.RECORD_REPO, created, seeded: !!written, commit: written?.commit ?? null, files: files.length });
+		}
+		if (m === "POST" && p === "/api/admin/test-referee") {
+			need(w, "admin");
+			const req = await body<{ model?: string; max_tokens?: number; prompt?: string; extra?: Record<string, unknown> }>(request).catch(() => ({}) as { model?: string; max_tokens?: number; prompt?: string; extra?: Record<string, unknown> });
+			const model = req.model || env.REFEREE_MODEL || DEFAULT_REFEREE_MODEL;
+			const t0 = Date.now();
+			try {
+				const raw = await env.AI.run(model as keyof AiModels, { messages: [{ role: "user", content: req.prompt ?? "Say the word ready." }], max_tokens: req.max_tokens ?? 20, ...(req.extra ?? {}) } as never);
+				return json({ model, ms: Date.now() - t0, raw });
+			} catch (e) {
+				return json({ model, error: (e as Error).message, name: (e as Error).name }, 502);
+			}
+		}
+		if (m === "POST" && p === "/api/admin/reset-demo") {
+			// Rehearsal reset: the board, the record (as seeded), the app's main back to its first commit, and every
+			// fork and candidate branch deleted.
+			need(w, "admin");
+			const out: Record<string, unknown> = {};
+			await board.reset();
+			const app = await remoteFor(env, env.PROJECT, "write", 600);
+			// main goes back to the commit tagged `seed` (or the first commit when there is no tag).
+			const [seedTag] = await listBranches(app, "refs/tags/seed");
+			using appRepo = await getRepo(env, env.PROJECT);
+			const history = await appRepo.log({ ref: "main", limit: 1000 });
+			const target = seedTag?.oid ?? history[history.length - 1]?.hash;
+			if (target && history[0]?.hash !== target) {
+				await resetBranch(app, "main", target);
+				out.main = `reset to ${target.slice(0, 7)}`;
+			}
+			const cands = await listBranches(app, "refs/heads/cand/");
+			out.candidate_branches = await deleteBranches(app, cands);
+			let cursor: string | undefined;
+			const forks: string[] = [];
+			do {
+				const page = await env.ARTIFACTS.list({ limit: 200, cursor });
+				forks.push(...page.repos.map((r) => r.name).filter((n) => n.startsWith(`${env.PROJECT}--`)));
+				cursor = page.cursor;
+			} while (cursor);
+			await Promise.all(forks.map((f) => env.ARTIFACTS.delete(f).catch(() => false)));
+			out.forks_deleted = forks.length;
+			// Deletes finish in the background; wait (up to 30 s) so a new fork can reuse a name straight away.
+			for (let i = 0; i < 15 && forks.length; i++) {
+				const left = (await env.ARTIFACTS.list({ limit: 200 })).repos.filter((r) => forks.includes(r.name)).length;
+				if (!left) break;
+				await new Promise((r) => setTimeout(r, 2000));
+			}
+			const files = demoRecordFiles();
+			const store = new RecordStore(env, env.RECORD_REPO);
+			const seeded = new Set(files.map((f) => f.path));
+			const stale = (await store.listAll()).filter((x) => !seeded.has(x)).map((path) => ({ path, content: null }));
+			await store.update(["steward.yaml"], () => ({ files: [...files, ...stale], message: "Reset the demo record for a rehearsal\n\nThe past decisions in this commit are synthetic (synthetic: true)." }));
+			forgetProject();
+			out.record = "reset to the seed";
+			await board.note("reset", "The demo was reset: app main, forks, candidate branches, record and board");
+			return json(out);
 		}
 		if (m === "POST" && p === "/api/admin/reset-board") {
 			need(w, "admin");

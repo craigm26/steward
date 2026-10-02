@@ -61,31 +61,34 @@ function parseExpect(raw: unknown, where: string): Record<string, string> {
 	return out;
 }
 
+/** One done check from a parsed map (a playbook's `done:` item, or a task's check sent as JSON). */
+export function parseDoneCheck(d: unknown, where: string): DoneCheck {
+	if (!isObj(d)) throw new Error(`${where}: expected a map`);
+	const name = str(d.name, `${where}.name`);
+	if (d.kind === "build") return { name, kind: "build" };
+	if (d.kind === "probe" || d.kind === undefined) {
+		const get = str(d.get, `${where}.get`);
+		if (!get.startsWith("/")) throw new Error(`${where}.get: expected a path starting with /`);
+		if (d.expect === undefined && d.contains === undefined) throw new Error(`${where}: a probe needs expect or contains`);
+		const expect = d.expect === undefined ? {} : isObj(d.expect) ? Object.fromEntries(Object.entries(d.expect).map(([k, v]) => [k, String(v)])) : parseExpect(d.expect, `${where}.expect`);
+		return {
+			name,
+			kind: "probe",
+			get,
+			expect,
+			...(d.contains === undefined ? {} : { contains: str(d.contains, `${where}.contains`) }),
+			status: d.status === undefined ? 200 : num(d.status, `${where}.status`, 100),
+		};
+	}
+	throw new Error(`${where}.kind: expected build or probe`);
+}
+
 export function parsePlaybook(text: string, file = "playbook"): Playbook {
 	const node = parseYamlSubset(text);
 	if (!isObj(node)) throw new Error(`${file}: expected a map`);
 	const doneN = node.done;
 	if (!Array.isArray(doneN) || !doneN.length) throw new Error(`${file}: done needs at least one check`);
-	const done: DoneCheck[] = doneN.map((d, i) => {
-		const where = `${file} done[${i}]`;
-		if (!isObj(d)) throw new Error(`${where}: expected a map`);
-		const name = str(d.name, `${where}.name`);
-		if (d.kind === "build") return { name, kind: "build" };
-		if (d.kind === "probe") {
-			const get = str(d.get, `${where}.get`);
-			if (!get.startsWith("/")) throw new Error(`${where}.get: expected a path starting with /`);
-			if (d.expect === undefined && d.contains === undefined) throw new Error(`${where}: a probe needs expect or contains`);
-			return {
-				name,
-				kind: "probe",
-				get,
-				expect: d.expect === undefined ? {} : parseExpect(d.expect, `${where}.expect`),
-				...(d.contains === undefined ? {} : { contains: str(d.contains, `${where}.contains`) }),
-				status: d.status === undefined ? 200 : num(d.status, `${where}.status`, 100),
-			};
-		}
-		throw new Error(`${where}.kind: expected build or probe`);
-	});
+	const done: DoneCheck[] = doneN.map((d, i) => parseDoneCheck(d, `${file} done[${i}]`));
 	const budget = isObj(node.budget) ? node.budget : {};
 	const am = isObj(node.auto_merge) ? node.auto_merge : {};
 	const mode = am.mode ?? "off";

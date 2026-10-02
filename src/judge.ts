@@ -131,7 +131,9 @@ export function rubricScores(view: View): { scores: number[][]; totals: number[]
 	return { scores, totals };
 }
 
-function softmax(xs: number[], temp = 3): number[] {
+// The rubric's totals become probabilities through a softmax. Its temperature is a free parameter of the mock (there
+// is no ground truth to fit it to): 4 makes a candidate that leads on every rule that separates them confident.
+function softmax(xs: number[], temp = 4): number[] {
 	const m = Math.max(...xs);
 	const e = xs.map((x) => Math.exp((x - m) * temp));
 	const z = e.reduce((a, b) => a + b, 0);

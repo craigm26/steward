@@ -38,6 +38,7 @@ measure:
 `;
 
 export const RULES_PLAYBOOK = `# Payment rules: what Larkspur pays and what it holds for a person.
+# Every change here must keep these checks passing; each task adds its own.
 path: rules
 title: Payment rules
 steward: dana
@@ -52,22 +53,18 @@ done:
     kind: probe
     get: /api/health
     expect: ok=true
-  - name: An invoice to a recently changed bank account is held
-    kind: probe
-    get: /api/invoices/INV-1042/decision
-    expect: action=hold, reasons.0.code=bank-details-changed
-  - name: An invoice whose pay-to account differs from the one on file is held
-    kind: probe
-    get: /api/invoices/INV-1047/decision
-    expect: action=hold
-  - name: A bank change older than 30 days is not held for it
-    kind: probe
-    get: /api/invoices/INV-1046/decision
-    expect: action=pay
   - name: An ordinary invoice is still paid
     kind: probe
     get: /api/invoices/INV-1041/decision
     expect: action=pay
+  - name: A large invoice with no purchase order is still held
+    kind: probe
+    get: /api/invoices/INV-1043/decision
+    expect: action=hold
+  - name: A duplicate invoice is still held
+    kind: probe
+    get: /api/invoices/INV-1045/decision
+    expect: action=hold
 budget:
   minutes: 45
   tokens: 400000

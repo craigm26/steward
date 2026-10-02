@@ -50,7 +50,7 @@ describe("record files", () => {
 	test("the demo playbooks, project and thresholds parse", () => {
 		const rules = parsePlaybook(RULES_PLAYBOOK, "rules");
 		expect(rules.path).toBe("rules");
-		expect(rules.done.filter((d) => d.kind === "probe")).toHaveLength(5);
+		expect(rules.done.filter((d) => d.kind === "probe")).toHaveLength(4);
 		expect(rules.auto_merge).toEqual({ mode: "earn", min_probability: 0.8, until_days: 30 });
 		const ui = parsePlaybook(UI_PLAYBOOK, "ui");
 		expect(ui.done.find((d) => d.kind === "probe" && d.contains)).toBeTruthy();

@@ -29,6 +29,14 @@ export async function maybeDecide(env: Env, decisionId: string | null, force = f
 	const board = boardFor(env);
 	const verdict = await board.readyToJudge(decisionId, force);
 	if (verdict !== "judge") return verdict;
-	await env.DECIDE.create({ id: decisionId, params: { decision: decisionId } });
+	const instance = `${decisionId}-${Date.now().toString(36)}`;
+	try {
+		await env.DECIDE.create({ id: instance, params: { decision: decisionId } });
+	} catch (e) {
+		// Never leave a decision stuck in judging with nobody judging it.
+		await board.advanceDecision(decisionId, ["judging"], "open", {}, { text: `Decision ${decisionId}: the judge could not start (${(e as Error).message}); back to open` });
+		throw e;
+	}
+	await board.setDecisionWorkflow(decisionId, instance);
 	return "started";
 }

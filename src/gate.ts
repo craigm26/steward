@@ -16,7 +16,8 @@ import type { GateCheck } from "./board";
 import { getRepo, previewUrl, remoteFor } from "./artifacts";
 import { promote } from "./git/ops";
 import { diffCommits, forkPoint } from "./diff";
-import { hedged, runProbe } from "./probe";
+import { runProbe } from "./probe";
+import { gateVerdict } from "./verdict";
 import { loadProject } from "./project";
 import { globMatch } from "./record/playbook";
 import { closeFork, maybeDecide } from "./lifecycle";
@@ -47,6 +48,7 @@ export class GateWorkflow extends WorkflowEntrypoint<Env, GateParams> {
 		const ctx = await step.do("load the claim", async () => {
 			const [claim, cand, task] = await Promise.all([board.claimOf(fork.task, fork.agent), board.candidate(id), board.task(fork.task)]);
 			if (!claim || claim.status !== "active" || !cand || !task) return { skip: "no active claim" as string };
+			if (!(await board.startGate(id, push.after, event.instanceId))) return { skip: `another gate run is checking ${push.after.slice(0, 7)}` };
 			if (["merged", "lost", "withdrawn", "over-budget"].includes(cand.status)) return { skip: `candidate is ${cand.status}` };
 			const late = Date.now() > Date.parse(claim.expires_at);
 			const spent = cand.tokens_used > claim.budget_tokens;
@@ -94,8 +96,12 @@ export class GateWorkflow extends WorkflowEntrypoint<Env, GateParams> {
 		// commit means the build and its tests passed.
 		let served = false;
 		let lastSeen = "";
-		for (let i = 0; i < PREVIEW_POLLS && !served; i++) {
+		let buildFailed: string | null = null;
+		for (let i = 0; i < PREVIEW_POLLS && !served && !buildFailed; i++) {
 			const r = await step.do(`wait for the Preview (${i + 1})`, async () => {
+				// A build system that reported a failed build for this commit ends the wait at once.
+				const b = await board.build(promoted.commit);
+				if (b && !b.ok) return { ok: false, seen: "build failed", failed: b.detail ?? "the build failed" };
 				try {
 					const res = await fetch(`${promoted.url}/api/health`, { headers: { "cache-control": "no-cache" }, signal: AbortSignal.timeout(10_000) });
 					const body = (await res.json().catch(() => ({}))) as { commit?: string };
@@ -106,19 +112,20 @@ export class GateWorkflow extends WorkflowEntrypoint<Env, GateParams> {
 			});
 			served = r.ok;
 			lastSeen = r.seen;
-			if (!served) await step.sleep(`before checking the Preview again (${i + 1})`, PREVIEW_EVERY);
+			buildFailed = (r as { failed?: string }).failed ?? null;
+			if (!served && !buildFailed) await step.sleep(`before checking the Preview again (${i + 1})`, PREVIEW_EVERY);
 		}
 		const buildCheck = project.playbook.done.find((d) => d.kind === "build");
 		checks.push({
 			name: buildCheck?.name ?? "Tests pass and the Preview builds",
 			ok: served,
-			...(served ? {} : { detail: `the Preview never served ${promoted.commit.slice(0, 7)} within ${PREVIEW_POLLS * 10} s (last answer ${lastSeen}): the build or its tests failed` }),
+			...(served ? {} : { detail: buildFailed ? `the build failed: ${buildFailed}` : `the Preview never served ${promoted.commit.slice(0, 7)} within ${PREVIEW_POLLS * 10} s (last answer ${lastSeen}): the build or its tests failed` }),
 		});
 
 		if (served) {
 			const probes = await step.do("run the done checks", async () => {
 				const out: GateCheck[] = [];
-				for (const d of project.playbook.done) if (d.kind === "probe") out.push(await runProbe(promoted.url, d));
+				for (const d of [...task.done, ...project.playbook.done]) if (d.kind === "probe") out.push(await runProbe(promoted.url, d));
 				return out;
 			});
 			checks.push(...probes);
@@ -128,24 +135,12 @@ export class GateWorkflow extends WorkflowEntrypoint<Env, GateParams> {
 			const now = await board.candidate(id);
 			if (!now) return { gone: true };
 			// A newer push already superseded this one: its own run records the verdict.
-			if (now.commit && now.commit !== promoted.commit) return { superseded: now.commit };
-			const allPass = checks.every((c) => c.ok);
-			const hedge = hedged(now.summary);
-			const failing = checks.filter((c) => !c.ok);
-			let status: "passed" | "bounced" | "working" = "working";
-			let note: string | null = null;
-			if (allPass && now.done && !hedge) {
-				status = "passed";
-			} else if (now.done && !allPass) {
-				status = "bounced";
-				note = `Claimed done, but ${failing.length} check(s) failed: ${failing.map((c) => c.name).join("; ")}. Bounced before anyone saw it.`;
-			} else if (now.done && hedge) {
-				note = `A hedged summary counts as not done ("${hedge}"). Say what works, or keep going.`;
-			} else if (allPass) {
-				note = "Every check passes. Call done when the work is finished.";
-			} else {
-				note = `${failing.length} check(s) failing: ${failing.map((c) => c.name).join("; ")}.`;
+			if (now.commit && now.commit !== promoted.commit) {
+				await board.finishGate(id, event.instanceId);
+				return { superseded: now.commit };
 			}
+			const failing = checks.filter((c) => !c.ok);
+			const { status, note } = gateVerdict(checks, now.done, now.summary);
 			await board.updateCandidate(
 				id,
 				{ status, note, checks, diff: { files: diff.d.files, added: diff.d.added, removed: diff.d.removed, patch: diff.d.patch }, tests_added: diff.d.testsAdded },
@@ -155,6 +150,7 @@ export class GateWorkflow extends WorkflowEntrypoint<Env, GateParams> {
 					data: { commit: promoted.commit, checks },
 				},
 			);
+			await board.finishGate(id, event.instanceId);
 			if (status === "passed" || status === "bounced") await maybeDecide(env, now.decision);
 			return { status, checks: checks.length, failing: failing.length };
 		});

@@ -52,30 +52,63 @@ export async function getRepo(env: ArtifactsEnv, name: string, waitMs = 30_000):
 	}
 }
 
-/** A remote URL plus a fresh repo-scoped token. Keep `ttl` as short as the work allows. */
-export async function remoteFor(env: ArtifactsEnv, name: string, scope: "read" | "write", ttl = 600): Promise<Remote & { expiresAt: string }> {
-	using repo = await getRepo(env, name);
-	const [info, token] = await Promise.all([repo.info(), repo.createToken(scope, ttl)]);
-	return { url: info.remote, token: token.plaintext, expiresAt: token.expiresAt };
-}
-
-/** Forks `app` for one agent on one task, or returns the fork that already exists. */
-export async function ensureFork(env: ArtifactsEnv, app: string, task: string, agent: string, description?: string) {
-	const name = forkName(app, task, agent);
-	try {
-		using existing = await env.ARTIFACTS.get(name);
-		const info = await existing.info();
-		return { name, remote: info.remote, created: false };
-	} catch (e) {
-		if ((e as ArtifactsError).code !== "NOT_FOUND") {
-			if (!RETRYABLE.has((e as ArtifactsError).code)) throw e;
-			using waited = await getRepo(env, name);
-			return { name, remote: (await waited.info()).remote, created: false };
+/** Runs `fn`, waiting out a repo that is still being created, imported or forked (up to `waitMs`). */
+export async function whenReady<T>(fn: () => Promise<T>, waitMs = 30_000): Promise<T> {
+	const until = Date.now() + waitMs;
+	for (let delay = 500; ; delay = Math.min(delay * 2, 4000)) {
+		try {
+			return await fn();
+		} catch (e) {
+			const code = (e as ArtifactsError).code;
+			if (!RETRYABLE.has(code) || Date.now() + delay > until) throw e;
+			await sleep(delay);
 		}
 	}
+}
+
+/** A remote URL plus a fresh repo-scoped token. Keep `ttl` as short as the work allows. */
+export async function remoteFor(env: ArtifactsEnv, name: string, scope: "read" | "write", ttl = 600): Promise<Remote & { expiresAt: string }> {
+	return whenReady(async () => {
+		using repo = await getRepo(env, name);
+		const [info, token] = await Promise.all([repo.info(), repo.createToken(scope, ttl)]);
+		return { url: info.remote, token: token.plaintext, expiresAt: token.expiresAt };
+	});
+}
+
+/** The repo's info once it is ready, or null when it does not exist. */
+async function readyInfo(env: ArtifactsEnv, name: string, waitMs = 60_000): Promise<ArtifactsRepoInfo | null> {
+	try {
+		return await whenReady(async () => {
+			using r = await env.ARTIFACTS.get(name);
+			return await r.info();
+		}, waitMs);
+	} catch (e) {
+		if ((e as ArtifactsError).code === "NOT_FOUND") return null;
+		throw e;
+	}
+}
+
+/**
+ * Forks `app` for one agent on one task, or returns the fork that already exists. A fork call can fail and still
+ * start the fork on Artifacts' side, so every failure re-checks for the repo (waiting for it to be ready) before
+ * trying again.
+ */
+export async function ensureFork(env: ArtifactsEnv, app: string, task: string, agent: string, description?: string) {
+	const name = forkName(app, task, agent);
+	const existing = await readyInfo(env, name);
+	if (existing) return { name, remote: existing.remote, created: false };
 	using base = await getRepo(env, app);
-	const forked = await base.fork(name, { description: description ?? `${agent} working on ${task}`, defaultBranchOnly: true, readOnly: false });
-	return { name, remote: forked.remote, created: true };
+	for (let attempt = 1, delay = 1000; ; attempt++, delay = Math.min(delay * 2, 8000)) {
+		try {
+			await base.fork(name, { description: description ?? `${agent} working on ${task}`, defaultBranchOnly: true, readOnly: false });
+		} catch (e) {
+			const code = (e as ArtifactsError).code;
+			if (!["ALREADY_EXISTS", "FORK_IN_PROGRESS", "INTERNAL_ERROR"].includes(code) || attempt >= 5) throw e;
+			if (code === "INTERNAL_ERROR") await sleep(delay);
+		}
+		const info = await readyInfo(env, name);
+		if (info) return { name, remote: info.remote, created: true };
+	}
 }
 
 export function isArtifactsError(e: unknown, code: ArtifactsErrorCode): boolean {

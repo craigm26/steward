@@ -6,6 +6,7 @@
 // Overlapping claims on one task are rivals in one decision; a claim that overlaps nobody gets a decision of its own.
 
 import { DurableObject } from "cloudflare:workers";
+import type { DoneCheck } from "./record/playbook";
 
 export type TaskStatus = "open" | "deciding" | "merged" | "closed";
 export type CandidateStatus = "claimed" | "working" | "checking" | "passed" | "bounced" | "over-budget" | "withdrawn" | "merged" | "lost";
@@ -19,6 +20,8 @@ export interface Task {
 	status: TaskStatus;
 	created_at: string;
 	created_by: string;
+	/** The task's own acceptance checks, run with the path's checks. */
+	done: DoneCheck[];
 }
 
 export interface Claim {
@@ -69,6 +72,7 @@ export interface Decision {
 	referee: unknown | null;
 	verdict: unknown | null;
 	merged_commit: string | null;
+	workflow: string | null;
 	created_at: string;
 	updated_at: string;
 }
@@ -114,6 +118,40 @@ export class ProjectBoard extends DurableObject {
 		this.sql.exec(`CREATE TABLE IF NOT EXISTS decisions (id TEXT PRIMARY KEY, task TEXT, path TEXT, status TEXT, candidates TEXT, judge TEXT, referee TEXT, verdict TEXT, merged_commit TEXT, created_at TEXT, updated_at TEXT)`);
 		this.sql.exec(`CREATE TABLE IF NOT EXISTS events (seq INTEGER PRIMARY KEY AUTOINCREMENT, at TEXT, kind TEXT, task TEXT, agent TEXT, text TEXT, data TEXT)`);
 		this.sql.exec(`CREATE TABLE IF NOT EXISTS agents (name TEXT PRIMARY KEY, key_hash TEXT, kind TEXT, created_at TEXT)`);
+		this.sql.exec(`CREATE TABLE IF NOT EXISTS builds (commit_sha TEXT PRIMARY KEY, ok INTEGER, detail TEXT, url TEXT, at TEXT)`);
+		// Columns added after v1: which gate run is checking which commit.
+		const cols = new Set(this.sql.exec(`PRAGMA table_info(candidates)`).toArray().map((r) => String(r.name)));
+		for (const [name, type] of [["gate_commit", "TEXT"], ["gate_run", "TEXT"], ["gate_at", "TEXT"]] as const) {
+			if (!cols.has(name)) this.sql.exec(`ALTER TABLE candidates ADD COLUMN ${name} ${type}`);
+		}
+		const tcols = new Set(this.sql.exec(`PRAGMA table_info(tasks)`).toArray().map((r) => String(r.name)));
+		if (!tcols.has("done")) this.sql.exec(`ALTER TABLE tasks ADD COLUMN done TEXT`);
+		const dcols = new Set(this.sql.exec(`PRAGMA table_info(decisions)`).toArray().map((r) => String(r.name)));
+		if (!dcols.has("workflow")) this.sql.exec(`ALTER TABLE decisions ADD COLUMN workflow TEXT`);
+	}
+
+	/**
+	 * One gate run per commit: a push and an agent's "done" for the same commit share a run. Returns false when
+	 * another run is already checking `commit` (a run older than 15 minutes is treated as stopped).
+	 */
+	async startGate(id: string, commit: string, run: string): Promise<boolean> {
+		const r = this.sql.exec(`SELECT gate_commit, gate_run, gate_at FROM candidates WHERE id = ?`, id).toArray()[0];
+		if (!r) return false;
+		const fresh = typeof r.gate_at === "string" && Date.now() - Date.parse(r.gate_at) < 15 * 60_000;
+		// Checked already ("done"), or being checked by another run that has not stalled: one run per commit.
+		if (r.gate_commit === commit && (r.gate_run === "done" || (r.gate_run && r.gate_run !== run && fresh))) return false;
+		this.sql.exec(`UPDATE candidates SET gate_commit = ?, gate_run = ?, gate_at = ? WHERE id = ?`, commit, run, now(), id);
+		return true;
+	}
+
+	async finishGate(id: string, run: string) {
+		this.sql.exec(`UPDATE candidates SET gate_run = 'done' WHERE id = ? AND gate_run = ?`, id, run);
+	}
+
+	/** Is a gate run checking this commit right now? */
+	async gateBusy(id: string, commit: string): Promise<boolean> {
+		const r = this.sql.exec(`SELECT gate_commit, gate_run, gate_at FROM candidates WHERE id = ?`, id).toArray()[0];
+		return !!r && r.gate_commit === commit && !!r.gate_run && r.gate_run !== "done" && typeof r.gate_at === "string" && Date.now() - Date.parse(r.gate_at) < 15 * 60_000;
 	}
 
 	// ----------------------------------------------------------------- events
@@ -183,16 +221,17 @@ export class ProjectBoard extends DurableObject {
 
 	// ----------------------------------------------------------------- tasks
 
-	async createTask(t: { id?: string; title: string; description: string; path: string; by: string }): Promise<Task> {
+	async createTask(t: { id?: string; title: string; description: string; path: string; by: string; done?: DoneCheck[] }): Promise<Task> {
 		const id = t.id ?? `t${Date.now().toString(36).slice(-5)}`;
-		const task: Task = { id, title: t.title, description: t.description, path: t.path, status: "open", created_at: now(), created_by: t.by };
-		this.sql.exec(`INSERT INTO tasks (id, title, description, path, status, created_at, created_by) VALUES (?, ?, ?, ?, ?, ?, ?)`, id, task.title, task.description, task.path, task.status, task.created_at, task.created_by);
+		if (this.sql.exec(`SELECT id FROM tasks WHERE id = ?`, id).toArray().length) throw new Error(`task ${id} exists`);
+		const task: Task = { id, title: t.title, description: t.description, path: t.path, status: "open", created_at: now(), created_by: t.by, done: t.done ?? [] };
+		this.sql.exec(`INSERT INTO tasks (id, title, description, path, status, created_at, created_by, done) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`, id, task.title, task.description, task.path, task.status, task.created_at, task.created_by, j(task.done));
 		this.emit("task", `Task ${id} opened: ${task.title}`, { task: id, data: { path: task.path } });
 		return task;
 	}
 
 	private rowTask(r: Record<string, unknown>): Task {
-		return { id: String(r.id), title: String(r.title), description: String(r.description), path: String(r.path), status: r.status as TaskStatus, created_at: String(r.created_at), created_by: String(r.created_by) };
+		return { id: String(r.id), title: String(r.title), description: String(r.description), path: String(r.path), status: r.status as TaskStatus, created_at: String(r.created_at), created_by: String(r.created_by), done: parse<DoneCheck[]>(r.done, []) };
 	}
 
 	async task(id: string): Promise<Task | null> {
@@ -358,9 +397,15 @@ export class ProjectBoard extends DurableObject {
 			referee: parse(r.referee, null),
 			verdict: parse(r.verdict, null),
 			merged_commit: (r.merged_commit as string) ?? null,
+			workflow: (r.workflow as string) ?? null,
 			created_at: String(r.created_at),
 			updated_at: String(r.updated_at),
 		};
+	}
+
+	/** The decide Workflow instance working on this decision (instance ids are unique, decision ids may repeat). */
+	async setDecisionWorkflow(id: string, workflow: string) {
+		this.sql.exec(`UPDATE decisions SET workflow = ? WHERE id = ?`, workflow, id);
 	}
 
 	async decision(id: string): Promise<Decision | null> {
@@ -419,6 +464,16 @@ export class ProjectBoard extends DurableObject {
 		return late.map((r) => ({ id: String(r.id), fork: String(r.fork), decision: (r.decision as string) ?? null }));
 	}
 
+	/** A build system (Workers Builds events, or any CI) reports how a commit's build went. */
+	async reportBuild(commit: string, ok: boolean, detail: string | null, url: string | null) {
+		this.sql.exec(`INSERT OR REPLACE INTO builds (commit_sha, ok, detail, url, at) VALUES (?, ?, ?, ?, ?)`, commit, ok ? 1 : 0, detail, url, now());
+	}
+
+	async build(commit: string): Promise<{ ok: boolean; detail: string | null; url: string | null } | null> {
+		const r = this.sql.exec(`SELECT ok, detail, url FROM builds WHERE commit_sha = ?`, commit).toArray()[0];
+		return r ? { ok: !!r.ok, detail: (r.detail as string) ?? null, url: (r.url as string) ?? null } : null;
+	}
+
 	// ----------------------------------------------------------------- whole board
 
 	async snapshot() {
@@ -432,7 +487,7 @@ export class ProjectBoard extends DurableObject {
 
 	/** Wipes the board (demo reset). The record repo and the Artifacts repos are not touched. */
 	async reset() {
-		for (const t of ["tasks", "claims", "candidates", "decisions", "events"]) this.sql.exec(`DELETE FROM ${t}`);
+		for (const t of ["tasks", "claims", "candidates", "decisions", "events", "builds"]) this.sql.exec(`DELETE FROM ${t}`);
 		this.emit("reset", "The board was reset");
 	}
 }

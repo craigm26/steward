@@ -25,6 +25,7 @@ const arg = (name, fallback) => {
 	return i > 0 ? process.argv[i + 1] : fallback;
 };
 const TASK = arg("task");
+const KIND = arg("kind", "bank");
 const SPECS = arg("agents", "ada:small,brook:module,cole:wrong").split(",").map((s) => s.split(":"));
 const SELFTEST = process.argv.includes("--selftest");
 if (!TASK && !SELFTEST) throw new Error("--task is required");
@@ -132,6 +133,96 @@ function addToRules(src, fnSrc, importLine) {
 	return out;
 }
 
+const TERMS_RULE = `
+/** Larkspur pays on net 30; terms far longer than that are a reason for a person to look. */
+export const MAX_TERMS_DAYS = 60;
+
+export function unusualTerms(invoice) {
+	if (invoice.termsDays > MAX_TERMS_DAYS) {
+		return { code: "unusual-terms", message: \`Terms are net \${invoice.termsDays}; Larkspur pays on net 30\` };
+	}
+	return null;
+}
+`;
+
+const TERMS_TEST = `
+test("an invoice on net 90 is held for its terms", () => {
+	assert.equal(decision("INV-1044").action, "hold");
+	assert.ok(codes("INV-1044").includes("unusual-terms"));
+});
+
+test("net 45 is within the limit", () => {
+	assert.ok(!codes("INV-1046").includes("unusual-terms"));
+});
+`;
+
+const TERMS_MODULE = `// Payment terms: a vendor asking for far longer terms than usual deserves a second look.
+
+export const TERMS = { usualDays: 30, maxDays: 60 };
+
+/** Hold an invoice whose terms run past the limit, saying how far past. */
+export function unusualTerms(invoice, ctx, terms = TERMS) {
+	const days = Number(invoice.termsDays ?? terms.usualDays);
+	if (!Number.isFinite(days)) {
+		return { code: "unusual-terms", message: "The invoice has no readable payment terms" };
+	}
+	if (days > terms.maxDays) {
+		return {
+			code: "unusual-terms",
+			message: \`Net \${days} is \${days - terms.usualDays} days longer than Larkspur's usual net \${terms.usualDays}\`,
+		};
+	}
+	return null;
+}
+`;
+
+const TERMS_WRONG = `
+export function unusualTerms(invoice) {
+	if (invoice.termsDays > 30) return { code: "unusual-terms", message: "Unusual terms" };
+	return null;
+}
+`;
+
+function addRule(src, fnName, fnSrc, importLine) {
+	let out = src.replace(/export const RULES = \[([^\]]*)\];/, (m, list) => `export const RULES = [${list}, ${fnName}];`);
+	if (importLine) out = importLine + "\n" + out;
+	else out = out.replace("export const RULES =", fnSrc.trim() + "\n\nexport const RULES =");
+	return out;
+}
+
+const TERMS_VARIANTS = {
+	small: {
+		files: ["src/rules.js", "test/rules.test.js"],
+		apply(dir) {
+			const rules = join(dir, "src/rules.js");
+			writeFileSync(rules, addRule(readFileSync(rules, "utf8"), "unusualTerms", TERMS_RULE));
+			const t = join(dir, "test/rules.test.js");
+			writeFileSync(t, readFileSync(t, "utf8").replace('\tassert.equal(decision("INV-1044").action, "pay");\n', "") + TERMS_TEST);
+		},
+		summary: "Holds INV-1044 (net 90) with reason unusual-terms and its terms in the message; INV-1046 on net 45 still pays. Two tests cover both; all tests pass.",
+	},
+	module: {
+		files: ["src/rules.js", "src/rules/terms.js", "test/rules.test.js"],
+		apply(dir) {
+			mkdirSync(join(dir, "src/rules"), { recursive: true });
+			writeFileSync(join(dir, "src/rules/terms.js"), TERMS_MODULE);
+			const rules = join(dir, "src/rules.js");
+			writeFileSync(rules, addRule(readFileSync(rules, "utf8"), "unusualTerms", "", 'import { unusualTerms } from "./rules/terms.js";'));
+			const t = join(dir, "test/rules.test.js");
+			writeFileSync(t, readFileSync(t, "utf8").replace('\tassert.equal(decision("INV-1044").action, "pay");\n', "") + TERMS_TEST);
+		},
+		summary: "New rules/terms.js holds invoices past 60-day terms (a setting), naming how far past net 30 they run. INV-1044 is held, INV-1046 still pays; tests cover both.",
+	},
+	wrong: {
+		files: ["src/rules.js"],
+		apply(dir) {
+			const rules = join(dir, "src/rules.js");
+			writeFileSync(rules, addRule(readFileSync(rules, "utf8"), "unusualTerms", TERMS_WRONG));
+		},
+		summary: "Done: invoices with unusual terms are held.",
+	},
+};
+
 const VARIANTS = {
 	small: {
 		files: ["src/rules.js", "test/rules.test.js"],
@@ -174,13 +265,13 @@ const VARIANTS = {
 };
 
 function plan(agent, variant, status) {
-	return `# Plan: ${agent} (scripted, variant ${variant})\n\n- [x] Read src/rules.js and the vendor data\n- [x] Add the bank-details rule\n- [${variant === "wrong" ? " " : "x"}] Add tests\n\nStatus: ${status}\n`;
+	return `# Plan: ${agent} (scripted, ${KIND} variant ${variant})\n\n- [x] Read src/rules.js and the invoice data\n- [x] Add the rule\n- [${variant === "wrong" ? " " : "x"}] Add tests\n\nStatus: ${status}\n`;
 }
 
 if (SELFTEST) {
 	// Apply each variant to a local copy of the demo app; run its tests and print the four probed decisions.
 	const app = new URL("../demo/larkspur-ap/", import.meta.url).pathname;
-	for (const [variant, v] of Object.entries(VARIANTS)) {
+	for (const [variant, v] of Object.entries(KIND === "terms" ? TERMS_VARIANTS : VARIANTS)) {
 		const dir = mkdtempSync(join(tmpdir(), `steward-selftest-${variant}-`));
 		execFileSync("cp", ["-r", join(app, "src"), join(app, "test"), join(app, "package.json"), dir]);
 		v.apply(dir);
@@ -194,7 +285,7 @@ if (SELFTEST) {
 			import { AS_OF, INVOICES, VENDORS } from "${dir}/src/data.js";
 			import { decide } from "${dir}/src/rules.js";
 			const ctx = { invoices: INVOICES, vendors: new Map(VENDORS.map((v) => [v.id, v])), asOf: AS_OF };
-			console.log(["INV-1041","INV-1042","INV-1046","INV-1047"].map((id) => { const d = decide(INVOICES.find((i) => i.id === id), ctx); return id + "=" + d.action + (d.reasons[0] ? "(" + d.reasons[0].code + ")" : ""); }).join(" "));
+			console.log(["INV-1041","INV-1042","INV-1043","INV-1044","INV-1045","INV-1046","INV-1047"].map((id) => { const d = decide(INVOICES.find((i) => i.id === id), ctx); return id + "=" + d.action + (d.reasons[0] ? "(" + d.reasons[0].code + ")" : ""); }).join(" "));
 		`], { encoding: "utf8" }).trim();
 		console.log(`${variant.padEnd(7)} tests ${tests}\n        ${probe}`);
 		rmSync(dir, { recursive: true, force: true });
@@ -206,16 +297,17 @@ const admin = client({ url: vars.STEWARD_URL, key: vars.STEWARD_ADMIN_KEY });
 const work = mkdtempSync(join(tmpdir(), "steward-scripted-"));
 const results = await Promise.all(
 	SPECS.map(async ([name, variant]) => {
-		const v = VARIANTS[variant];
+		const v = (KIND === "terms" ? TERMS_VARIANTS : VARIANTS)[variant];
 		if (!v) throw new Error(`unknown variant ${variant}`);
 		const { key } = await admin.register(name, "scripted");
 		const me = client({ url: vars.STEWARD_URL, key });
 		const claim = await me.claim(TASK, v.files, plan(name, variant, "working"));
 		const dir = cloneFork(claim, join(work, name), { name: `${name} (scripted agent)`, email: `${name}@agents.steward.invalid` });
 		v.apply(dir);
+		mkdirSync(join(dir, ".steward"), { recursive: true });
 		writeFileSync(join(dir, ".steward/PLAN.md"), plan(name, variant, "done"));
 		execFileSync("git", ["add", "-A"], { cwd: dir });
-		execFileSync("git", ["commit", "-q", "-m", `${name}: hold invoices whose bank details changed (${variant})`], { cwd: dir });
+		execFileSync("git", ["commit", "-q", "-m", `${name}: ${KIND === "terms" ? "hold invoices with unusual terms" : "hold invoices whose bank details changed"} (${variant})`], { cwd: dir });
 		execFileSync("git", ["push", "-q", "origin", "HEAD:main"], { cwd: dir });
 		const commit = execFileSync("git", ["rev-parse", "HEAD"], { cwd: dir, encoding: "utf8" }).trim();
 		const done = await me.done(TASK, v.summary, 20000 + Math.floor(Math.random() * 30000));

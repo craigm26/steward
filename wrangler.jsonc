@@ -21,7 +21,7 @@
     // Anyone with the URL may watch the board; only keys can change it.
     "PUBLIC_READ": "on",
     // The model the referee argues with (Workers AI).
-    "REFEREE_MODEL": "@cf/moonshotai/kimi-k2.7-code"
+    "REFEREE_MODEL": "@cf/deepseek-ai/deepseek-v4-flash-0731"
   },
   "ai": { "binding": "AI" },
   // The board UI; /api/* goes to the Worker first.
