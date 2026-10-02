@@ -16,7 +16,7 @@ The reset moves the app's main back to the `seed` tag, deletes every fork and ca
 | 3:10–4:20 | Gate 2 | The card: Previews side by side, the judge's pick and rule, the referee's objection to each; the steward overrules once and says why | **Open the card**; pick a candidate that is not the judge's, write the reason, ship it; the **Official** seal lands |
 | 4:20–5:10 | Why-blame | On a changed line: the task, the rivals it beat, the verdict, who decided and why | **Why**, `src/rules.js`, click a highlighted line |
 | 5:10–6:20 | The check | The judge replayed on the steward's past calls; one path earns auto-merge, another loses it | **Paths**, **Run the check now** on Payment rules, then on Invoice queue page |
-| 6:20–7:10 | Scale | Many scripted agents through the claims board and gate 1, said to be scripted | `node agents/scripted.mjs` on a second task with many agents |
+| 6:20–7:10 | Scale | 120 scripted agents on 20 translation tasks, said to be scripted: 80 broken files bounced at gate 1, most decisions merged by the judge alone on a path that earned it, the rest sampled to the steward | **Paths**, run the check on Translations; then `curl -X POST "$STEWARD_URL/api/admin/scale" -H "authorization: Bearer $STEWARD_ADMIN_KEY"` and watch the board's totals; it settles in about two minutes |
 | 7:10–7:50 | Yours to run | Deploy to your own account, pick US or EU, see what is in the repo | README, `scripts/seed-app.mjs` |
 | 7:50–8:30 | Close | Every merge names the person who made the call | **Ledger** |
 

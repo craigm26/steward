@@ -221,7 +221,25 @@ function viewBoard() {
 	);
 	freshSeqs.clear();
 
-	return h("div", { class: "board" }, rail, h("section", null, sel ? taskSheet(sel, b) : emptyBoard()), feed);
+	return h("div", { class: "board" }, rail, h("section", null, b.candidates.length > 12 ? totals(b) : null, sel ? taskSheet(sel, b) : emptyBoard()), feed);
+}
+
+/** The whole board in numbers, shown once many agents are racing. */
+function totals(b) {
+	const n = (f) => b.candidates.filter(f).length;
+	const ledgerish = b.decisions.filter((d) => d.status === "merged");
+	const alone = ledgerish.filter((d) => d.verdict?.kind === "agent" || d.judge?.route?.auto).length;
+	const cells = [
+		[String(new Set(b.candidates.map((c) => c.agent)).size), "agents"],
+		[String(b.tasks.length), "tasks"],
+		[String(n((c) => ["passed", "merged", "lost"].includes(c.status))), "passed gate 1"],
+		[String(n((c) => c.status === "bounced")), "bounced"],
+		[String(n((c) => ["claimed", "working", "checking"].includes(c.status))), "still working"],
+		[String(alone), "merged by the judge alone"],
+		[String(ledgerish.length - alone), "decided by the steward"],
+		[String(b.decisions.filter((d) => d.status === "ready").length), "waiting for the steward"],
+	];
+	return h("div", { class: "sheet totals", style: "margin-bottom:16px" }, h("div", { class: "figures" }, cells.map(([v, l]) => h("div", { class: "fig" }, h("b", null, v), h("span", null, l)))));
 }
 
 function emptyBoard() {
@@ -273,7 +291,7 @@ function taskSheet(t, b) {
 								c.note ? h("div", { class: `note${c.status === "bounced" || c.status === "over-budget" ? " bad" : ""}` }, c.note) : null,
 								c.checks.length ? h("details", { class: "checks" }, h("summary", null, "Checks"), checksList(c.checks)) : null,
 							),
-							h("td", null, c.preview_url ? h("a", { href: c.preview_url, target: "_blank", rel: "noopener" }, "Open") : h("span", { class: "faint small" }, "Not yet")),
+							h("td", null, c.preview_url && !c.checks.some((k) => /Preview builds/.test(k.name) && !k.ok) ? h("a", { href: c.preview_url, target: "_blank", rel: "noopener" }, "Open") : h("span", { class: "faint small" }, c.status === "bounced" ? "None" : "Not yet")),
 						);
 					}),
 				),
@@ -404,7 +422,8 @@ async function viewDecision(id) {
 	const shipped = d?.status === "merged" || !!rec?.merge;
 	const chosen = verdict?.pick;
 	const canDecide = ready && state.who.kind === "admin";
-	const order = [...candidates].sort((a, z) => (z.id === j?.pick) - (a.id === j?.pick) || (z.status === "passed") - (a.status === "passed"));
+	const passedOf = (c) => ["passed", "merged", "lost"].includes(c.status);
+	const order = [...candidates].sort((a, z) => (z.id === chosen) - (a.id === chosen) || (z.id === j?.pick) - (a.id === j?.pick) || passedOf(z) - passedOf(a) || a.agent.localeCompare(z.agent));
 
 	const lanes = order.map((c) => {
 		const out = !["passed", "merged", "lost"].includes(c.status);

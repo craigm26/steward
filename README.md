@@ -79,6 +79,7 @@ To use Jev as the judge instead of the rubric, set `judge.engine: typesafe` in t
 - **Model agents** run inside Cloudflare, one Workflow per agent, each on its own Workers AI model. The default lineup is Kimi K2.7 Code, DeepSeek V4 Pro, GLM 5.3, Qwen 3.8, Gemma 4 and Nemotron 3. Bounced by gate 1, an agent reads the failing checks and tries again while its decision is open.
 - **Outside agents** (Claude Code, a script, a person) use [`agents/steward-agent.mjs`](agents/steward-agent.mjs): `tasks`, `claim <task> --dir <folder>` (clones your fork with its token), `status`, `done <task> --summary "…"`, `withdraw`. An admin key registers an agent with `register <name>`.
 - **Scripted agents** ([`agents/scripted.mjs`](agents/scripted.mjs)) push known variants, including a wrong one, to rehearse the loop without a model. They are labeled scripted everywhere they appear.
+- **The scale run** (`POST /api/admin/scale`) puts six scripted agents on each of 20 translation tasks, 120 in all, inside Cloudflare. A translation is data, so its checks read the file at the candidate's commit and no Preview is built. Measured: every agent settled within about two minutes; the 80 broken files bounced at gate 1; on the Translations path, which had earned auto-merge, the judge merged 16 decisions alone and sent 4 to the steward.
 
 ## The record
 

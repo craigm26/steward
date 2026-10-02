@@ -1,0 +1,10 @@
+{
+  "title": "Invoices to pay",
+  "pay": "Pay",
+  "hold": "Hold",
+  "invoice": "Invoice",
+  "vendor": "Vendor",
+  "amount": "Amount",
+  "decision": "Decision",
+  "held_note": "held for a person to look at"
+}

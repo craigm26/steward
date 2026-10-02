@@ -24,6 +24,7 @@ import type { StewardVerdict } from "./decide";
 import { HttpError } from "./errors";
 import { claimTask, markDone } from "./work";
 import { LINEUP } from "./agents/race";
+import { LANGUAGES, SCALE_LINEUP, translationTask } from "./demo/locales";
 import { boardFor } from "./board";
 
 type Who = { kind: "admin" } | { kind: "agent"; name: string } | { kind: "public" };
@@ -233,6 +234,38 @@ export async function handleApi(request: Request, env: Env, ctx: ExecutionContex
 			const created = await env.AGENTS.createBatch(lineup.map((a) => ({ id: `${task.id}-${a.agent}-${stamp}`, params: { task: task.id, agent: a.agent, model: a.model, rounds: req.rounds ?? 2 } })));
 			await board.note("race", `${lineup.length} model agents started on task ${task.id}: ${lineup.map((a) => a.agent).join(", ")}`, { task: task.id, data: { lineup } });
 			return json({ started: created.map((c) => c.id), lineup });
+		}
+		if (m === "POST" && p === "/api/admin/scale") {
+			// The scale run: one translation task per language, six scripted agents on each, all inside Cloudflare.
+			need(w, "admin");
+			const req = await body<{ languages?: number }>(request).catch(() => ({}) as { languages?: number });
+			const langs = LANGUAGES.slice(0, Math.max(1, Math.min(LANGUAGES.length, req.languages ?? LANGUAGES.length)));
+			const project = await loadProject(env);
+			const steward = project.playbooks.locales?.steward;
+			if (!steward) throw new HttpError(400, "the record has no locales playbook; reset the demo record first");
+			const runs: { id: string; params: unknown }[] = [];
+			const stamp = Date.now().toString(36);
+			for (const lang of langs) {
+				const t = translationTask(lang.code);
+				if (!(await board.task(t.id))) await board.createTask({ ...t, by: steward, done: t.done.map((d, i) => parseDoneCheck(d, `${t.id} done[${i}]`)) });
+				SCALE_LINEUP.forEach((variant, i) => {
+					const agent = `${lang.code}-${i + 1}`;
+					runs.push({ id: `${t.id}-${agent}-${stamp}`, params: { task: t.id, agent, model: "scripted", script: { code: lang.code, variant } } });
+				});
+			}
+			for (let i = 0; i < runs.length; i += 100) await env.AGENTS.createBatch(runs.slice(i, i + 100) as never);
+			await board.note("race", `Scale run: ${runs.length} scripted agents on ${langs.length} translation tasks`, { data: { agents: runs.length, tasks: langs.length } });
+			return json({ agents: runs.length, tasks: langs.map((l) => `l-${l.code}`) });
+		}
+		if (m === "POST" && p === "/api/admin/regate") {
+			// Run gate 1 again on a candidate's latest commit (after an outage left it unchecked).
+			need(w, "admin");
+			const req = await body<{ candidate: string }>(request);
+			const cand = await board.candidate(req.candidate);
+			if (!cand) throw new HttpError(404, `no candidate ${req.candidate}`);
+			await board.clearGate(cand.id);
+			const instance = await gateForHead(env, cand.fork, "regate by the steward");
+			return json({ ok: true, gate: instance.id });
 		}
 		if (m === "POST" && p === "/api/admin/demo-task") {
 			need(w, "admin");

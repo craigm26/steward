@@ -48,3 +48,32 @@ export function hedged(summary: string | null | undefined): string | null {
 	const m = summary ? HEDGES.exec(summary) : null;
 	return m ? m[0] : null;
 }
+
+/**
+ * A file check reads a file at the candidate's commit (no Preview needed): it exists, optionally parses as JSON,
+ * optionally has every key of another file (`like`) with no empty value, optionally contains some text.
+ */
+export async function runFileCheck(read: (path: string) => Promise<string | null>, check: Extract<DoneCheck, { kind: "file" }>): Promise<GateCheck> {
+	const text = await read(check.file);
+	if (text === null) return { name: check.name, ok: false, detail: `${check.file} is missing` };
+	if (check.contains !== undefined && !text.includes(check.contains)) return { name: check.name, ok: false, detail: `${check.file} does not contain "${check.contains}"` };
+	if (check.json || check.like) {
+		let value: unknown;
+		try {
+			value = JSON.parse(text);
+		} catch (e) {
+			return { name: check.name, ok: false, detail: `${check.file} is not valid JSON: ${(e as Error).message.slice(0, 80)}` };
+		}
+		if (check.like) {
+			const model = await read(check.like);
+			if (model === null) return { name: check.name, ok: false, detail: `${check.like} is missing` };
+			const want = Object.keys(JSON.parse(model) as Record<string, unknown>);
+			const got = (value ?? {}) as Record<string, unknown>;
+			const missing = want.filter((k) => !(k in got));
+			if (missing.length) return { name: check.name, ok: false, detail: `missing ${missing.join(", ")}` };
+			const empty = want.filter((k) => typeof got[k] !== "string" || !String(got[k]).trim());
+			if (empty.length) return { name: check.name, ok: false, detail: `empty ${empty.join(", ")}` };
+		}
+	}
+	return { name: check.name, ok: true };
+}

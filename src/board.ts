@@ -148,6 +148,11 @@ export class ProjectBoard extends DurableObject {
 		this.sql.exec(`UPDATE candidates SET gate_run = 'done' WHERE id = ? AND gate_run = ?`, id, run);
 	}
 
+	/** Forgets which commit gate 1 checked, so the next run on that commit goes ahead (after a failed run). */
+	async clearGate(id: string) {
+		this.sql.exec(`UPDATE candidates SET gate_commit = NULL, gate_run = NULL, gate_at = NULL WHERE id = ?`, id);
+	}
+
 	/** Is a gate run checking this commit right now? */
 	async gateBusy(id: string, commit: string): Promise<boolean> {
 		const r = this.sql.exec(`SELECT gate_commit, gate_run, gate_at FROM candidates WHERE id = ?`, id).toArray()[0];

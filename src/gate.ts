@@ -16,7 +16,7 @@ import type { GateCheck } from "./board";
 import { getRepo, previewUrl, remoteFor } from "./artifacts";
 import { promote } from "./git/ops";
 import { diffCommits, forkPoint } from "./diff";
-import { runProbe } from "./probe";
+import { runFileCheck, runProbe } from "./probe";
 import { gateVerdict } from "./verdict";
 import { loadProject } from "./project";
 import { globMatch } from "./record/playbook";
@@ -30,7 +30,7 @@ export const STEWARD_EMAIL = "steward@steward.invalid";
 const PREVIEW_POLLS = 60;
 const PREVIEW_EVERY = "10 seconds";
 
-export type GateParams = { type?: string; source?: unknown; payload?: unknown; reason?: string };
+export type GateParams = { type?: string; source?: unknown; payload?: unknown; reason?: string; attempt?: number };
 
 export class GateWorkflow extends WorkflowEntrypoint<Env, GateParams> {
 	async run(event: Readonly<WorkflowEvent<GateParams>>, step: WorkflowStep) {
@@ -66,96 +66,147 @@ export class GateWorkflow extends WorkflowEntrypoint<Env, GateParams> {
 			return { overBudget: true };
 		}
 
-		const project = await step.do("read the playbook", async () => {
-			const p = await loadProject(env);
-			const playbook = p.playbooks[task.path];
-			if (!playbook) throw new Error(`no playbook for path ${task.path}`);
-			return { worker: p.config.worker, playbook };
-		});
-
-		const promoted = await step.do("promote to a candidate branch", { retries: { limit: 3, delay: "5 seconds", backoff: "exponential" } }, async () => {
-			const [source, target] = await Promise.all([remoteFor(env, claim.fork, "read", 300), remoteFor(env, env.PROJECT, "write", 300)]);
-			const p = await promote({ source, target, targetRef: `refs/heads/${cand.branch}` });
-			const url = previewUrl(env, project.worker, cand.branch);
-			await board.updateCandidate(id, { commit: p.commit, status: "checking", preview_url: url, note: null, checks: [] }, { kind: "checking", text: `${fork.agent} pushed ${p.commit.slice(0, 7)}; gate 1 is checking it`, data: { commit: p.commit, preview: url } });
-			return { commit: p.commit, url };
-		});
-
-		const diff = await step.do("diff against where it started", async () => {
-			const base = (await forkPoint(env, env.PROJECT, cand.branch)) ?? promoted.commit;
-			const d = await diffCommits(env, env.PROJECT, base, promoted.commit);
-			// An agent changes only the files it claimed. A new file is fine inside its path; an existing file it did
-			// not claim is not, because another agent may hold it.
-			const outside = d.files
-				.filter((f) => !claim.files.includes(f.path))
-				.filter((f) => f.status !== "added" || !project.playbook.globs.some((g) => globMatch(g, f.path)))
-				.map((f) => f.path);
-			return { base, d, outside };
-		});
-
-		const checks: GateCheck[] = [];
-		if (diff.outside.length) checks.push({ name: "Changes stay inside the claim", ok: false, detail: `changed files it did not claim: ${diff.outside.join(", ")}` });
-		else checks.push({ name: "Changes stay inside the claim", ok: true });
-
-		// The build check: Workers Builds (or any CI) builds and tests the branch; a Preview that serves this
-		// commit means the build and its tests passed.
-		let served = false;
-		let lastSeen = "";
-		let buildFailed: string | null = null;
-		for (let i = 0; i < PREVIEW_POLLS && !served && !buildFailed; i++) {
-			const r = await step.do(`wait for the Preview (${i + 1})`, async () => {
-				// A build system that reported a failed build for this commit ends the wait at once.
-				const b = await board.build(promoted.commit);
-				if (b && !b.ok) return { ok: false, seen: "build failed", failed: b.detail ?? "the build failed" };
-				try {
-					const res = await fetch(`${promoted.url}/api/health`, { headers: { "cache-control": "no-cache" }, signal: AbortSignal.timeout(10_000) });
-					const body = (await res.json().catch(() => ({}))) as { commit?: string };
-					return { ok: res.ok && body.commit === promoted.commit, seen: `${res.status} ${body.commit?.slice(0, 7) ?? "-"}` };
-				} catch (e) {
-					return { ok: false, seen: (e as Error).message.slice(0, 80) };
-				}
+		try {
+			const project = await step.do("read the playbook", async () => {
+				const p = await loadProject(env);
+				const playbook = p.playbooks[task.path];
+				if (!playbook) throw new Error(`no playbook for path ${task.path}`);
+				return { worker: p.config.worker, playbook };
 			});
-			served = r.ok;
-			lastSeen = r.seen;
-			buildFailed = (r as { failed?: string }).failed ?? null;
-			if (!served && !buildFailed) await step.sleep(`before checking the Preview again (${i + 1})`, PREVIEW_EVERY);
-		}
-		const buildCheck = project.playbook.done.find((d) => d.kind === "build");
-		checks.push({
-			name: buildCheck?.name ?? "Tests pass and the Preview builds",
-			ok: served,
-			...(served ? {} : { detail: buildFailed ? `the build failed: ${buildFailed}` : `the Preview never served ${promoted.commit.slice(0, 7)} within ${PREVIEW_POLLS * 10} s (last answer ${lastSeen}): the build or its tests failed` }),
-		});
 
-		if (served) {
-			const probes = await step.do("run the done checks", async () => {
-				const out: GateCheck[] = [];
-				for (const d of [...task.done, ...project.playbook.done]) if (d.kind === "probe") out.push(await runProbe(promoted.url, d));
-				return out;
+			const promoted = await step.do("promote to a candidate branch", { retries: { limit: 6, delay: "4 seconds", backoff: "exponential" } }, async () => {
+				const [source, target] = await Promise.all([remoteFor(env, claim.fork, "read", 300), remoteFor(env, env.PROJECT, "write", 300)]);
+				const p = await promote({ source, target, targetRef: `refs/heads/${cand.branch}` });
+				const url = previewUrl(env, project.worker, cand.branch);
+				await board.updateCandidate(id, { commit: p.commit, status: "checking", preview_url: url, note: null, checks: [] }, { kind: "checking", text: `${fork.agent} pushed ${p.commit.slice(0, 7)}; gate 1 is checking it`, data: { commit: p.commit, preview: url } });
+				return { commit: p.commit, url };
 			});
-			checks.push(...probes);
+
+			const diff = await step.do("diff against where it started", async () => {
+				const base = (await forkPoint(env, env.PROJECT, cand.branch)) ?? promoted.commit;
+				const d = await diffCommits(env, env.PROJECT, base, promoted.commit);
+				// An agent changes only the files it claimed. A new file is fine inside its path; an existing file it did
+				// not claim is not, because another agent may hold it.
+				const outside = d.files
+					.filter((f) => !claim.files.includes(f.path))
+					.filter((f) => f.status !== "added" || !project.playbook.globs.some((g) => globMatch(g, f.path)))
+					.map((f) => f.path);
+				return { base, d, outside };
+			});
+
+			const checks: GateCheck[] = [];
+			if (diff.outside.length) checks.push({ name: "Changes stay inside the claim", ok: false, detail: `changed files it did not claim: ${diff.outside.join(", ")}` });
+			else checks.push({ name: "Changes stay inside the claim", ok: true });
+
+			// A path whose checks are all on files (translations, data, docs) needs no build and no Preview.
+			const allChecks = [...task.done, ...project.playbook.done];
+			const needsPreview = allChecks.some((d) => d.kind === "build" || d.kind === "probe");
+			if (!needsPreview) {
+				const fileChecks = await step.do("run the file checks", async () => {
+					using app = await getRepo(env, env.PROJECT);
+					const read = async (path: string) => (await (await app.readFile({ ref: promoted.commit, path }))?.text()) ?? null;
+					const out: GateCheck[] = [];
+					for (const d of allChecks) if (d.kind === "file") out.push(await runFileCheck(read, d));
+					return out;
+				});
+				checks.push(...fileChecks);
+				return this.record(step, board, id, fork.agent, promoted.commit, checks, diff.d, event.instanceId);
+			}
+
+			// The build check: Workers Builds (or any CI) builds and tests the branch; a Preview that serves this
+			// commit means the build and its tests passed.
+			let served = false;
+			let lastSeen = "";
+			let buildFailed: string | null = null;
+			for (let i = 0; i < PREVIEW_POLLS && !served && !buildFailed; i++) {
+				const r = await step.do(`wait for the Preview (${i + 1})`, async () => {
+					// A build system that reported a failed build for this commit ends the wait at once.
+					const b = await board.build(promoted.commit);
+					if (b && !b.ok) return { ok: false, seen: "build failed", failed: b.detail ?? "the build failed" };
+					try {
+						const res = await fetch(`${promoted.url}/api/health`, { headers: { "cache-control": "no-cache" }, signal: AbortSignal.timeout(10_000) });
+						const body = (await res.json().catch(() => ({}))) as { commit?: string };
+						return { ok: res.ok && body.commit === promoted.commit, seen: `${res.status} ${body.commit?.slice(0, 7) ?? "-"}` };
+					} catch (e) {
+						return { ok: false, seen: (e as Error).message.slice(0, 80) };
+					}
+				});
+				served = r.ok;
+				lastSeen = r.seen;
+				buildFailed = (r as { failed?: string }).failed ?? null;
+				if (!served && !buildFailed) await step.sleep(`before checking the Preview again (${i + 1})`, PREVIEW_EVERY);
+			}
+			const buildCheck = project.playbook.done.find((d) => d.kind === "build");
+			checks.push({
+				name: buildCheck?.name ?? "Tests pass and the Preview builds",
+				ok: served,
+				...(served ? {} : { detail: buildFailed ? `the build failed: ${buildFailed}` : `the Preview never served ${promoted.commit.slice(0, 7)} within ${PREVIEW_POLLS * 10} s (last answer ${lastSeen}): the build or its tests failed` }),
+			});
+
+			if (served) {
+				const probes = await step.do("run the done checks", async () => {
+					const out: GateCheck[] = [];
+					for (const d of allChecks) if (d.kind === "probe") out.push(await runProbe(promoted.url, d));
+					if (allChecks.some((d) => d.kind === "file")) {
+						using app = await getRepo(env, env.PROJECT);
+						const read = async (path: string) => (await (await app.readFile({ ref: promoted.commit, path }))?.text()) ?? null;
+						for (const d of allChecks) if (d.kind === "file") out.push(await runFileCheck(read, d));
+					}
+					return out;
+				});
+				checks.push(...probes);
+			}
+			return this.record(step, board, id, fork.agent, promoted.commit, checks, diff.d, event.instanceId);
+		} catch (e) {
+			// Gate 1 could not finish (most often Artifacts refusing a push under heavy load). Never leave the commit
+			// locked: release it, then try the whole gate again a little later, up to three times.
+			const why = (e as Error).message.slice(0, 160);
+			const attempt = Number((event.payload as { attempt?: number })?.attempt ?? 0);
+			await step.do("release the commit after a failure", async () => {
+				await board.finishGate(id, event.instanceId);
+				await board.clearGate(id);
+				return true;
+			});
+			if (attempt < 3) {
+				await step.sleep("before trying gate 1 again", `${30 * (attempt + 1)} seconds`);
+				await step.do("try gate 1 again", async () => {
+					await gateForHead(env, claim.fork, `retry after: ${why}`, attempt + 1);
+					return true;
+				});
+				return { retried: attempt + 1, why };
+			}
+			await step.do("give up on this commit", async () => {
+				await board.updateCandidate(id, { note: `Gate 1 could not run on your latest commit (${why}). Push again or say done again to retry.` }, { kind: "checked", text: `${fork.agent}: gate 1 could not run (${why})` });
+				return true;
+			});
+			return { failed: why };
 		}
+	}
+
+	/** Records gate 1's verdict on this commit, unless a newer push superseded it, and settles the decision. */
+	private async record(step: WorkflowStep, board: ReturnType<typeof boardFor>, id: string, agent: string, commit: string, checks: GateCheck[], d: { files: { path: string; added: number; removed: number }[]; added: number; removed: number; patch: string; testsAdded: number }, run: string) {
+		const env = this.env;
 
 		return step.do("record gate 1", async () => {
 			const now = await board.candidate(id);
 			if (!now) return { gone: true };
 			// A newer push already superseded this one: its own run records the verdict.
-			if (now.commit && now.commit !== promoted.commit) {
-				await board.finishGate(id, event.instanceId);
+			if (now.commit && now.commit !== commit) {
+				await board.finishGate(id, run);
 				return { superseded: now.commit };
 			}
 			const failing = checks.filter((c) => !c.ok);
 			const { status, note } = gateVerdict(checks, now.done, now.summary);
 			await board.updateCandidate(
 				id,
-				{ status, note, checks, diff: { files: diff.d.files, added: diff.d.added, removed: diff.d.removed, patch: diff.d.patch }, tests_added: diff.d.testsAdded },
+				{ status, note, checks, diff: { files: d.files, added: d.added, removed: d.removed, patch: d.patch }, tests_added: d.testsAdded },
 				{
 					kind: status === "passed" ? "passed" : status === "bounced" ? "bounce" : "checked",
-					text: status === "passed" ? `${fork.agent} passed gate 1 (${checks.length} checks)` : status === "bounced" ? `${fork.agent} claimed done and failed gate 1: bounced` : `${fork.agent}: ${note}`,
-					data: { commit: promoted.commit, checks },
+					text: status === "passed" ? `${agent} passed gate 1 (${checks.length} checks)` : status === "bounced" ? `${agent} claimed done and failed gate 1: bounced` : `${agent}: ${note}`,
+					data: { commit: commit, checks },
 				},
 			);
-			await board.finishGate(id, event.instanceId);
+			await board.finishGate(id, run);
 			if (status === "passed" || status === "bounced") await maybeDecide(env, now.decision);
 			return { status, checks: checks.length, failing: failing.length };
 		});
@@ -163,7 +214,7 @@ export class GateWorkflow extends WorkflowEntrypoint<Env, GateParams> {
 }
 
 /** Mints a push-shaped event for the fork's current head, so "done" re-runs gate 1 without a new commit. */
-export async function gateForHead(env: Env, forkRepo: string, reason: string) {
+export async function gateForHead(env: Env, forkRepo: string, reason: string, attempt = 0) {
 	using repo = await getRepo(env, forkRepo);
 	const [tip] = await repo.log({ ref: "main", limit: 1 });
 	if (!tip) throw new Error(`${forkRepo} has no commits`);
@@ -172,6 +223,7 @@ export async function gateForHead(env: Env, forkRepo: string, reason: string) {
 		source: { namespace: "steward", repoName: forkRepo },
 		payload: { ref: "refs/heads/main", before: null, after: tip.hash, commits: [{ id: tip.hash, message: tip.message, author: tip.author }] },
 		reason,
+		attempt,
 	};
 	return env.GATE.create({ id: `${forkRepo}-${tip.hash.slice(0, 7)}-${Date.now().toString(36)}`, params: payload });
 }

@@ -115,6 +115,11 @@ export function rubricScores(view: View): { scores: number[][]; totals: number[]
 		const r = rule.toLowerCase();
 		return cands.map((c, i) => {
 			const added = c.patch.split("\n").filter((l) => l.startsWith("+") && !l.startsWith("+++")).join("\n").toLowerCase();
+			if (/shortest wording|short wording|concise/.test(r)) {
+				const chars = (x: string) => x.split("\n").filter((l) => l.startsWith("+") && !l.startsWith("+++")).join("").length || 1;
+				const least = Math.min(...cands.map((k) => chars(k.patch)));
+				return least / chars(c.patch);
+			}
 			if (/small|minimal|least|focused/.test(r)) return smallest / size[i]!;
 			if (/test/.test(r)) return c.tests_added > 0 ? 1 : 0;
 			if (/reason|says why|explain|words|message/.test(r)) {

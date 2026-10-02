@@ -111,6 +111,30 @@ auto_merge:
 max_agents: 4
 `;
 
+export const LOCALES_PLAYBOOK = `# Translations of the queue's labels: data only, so the checks read files and no Preview is built.
+path: locales
+title: Translations
+steward: dana
+globs:
+  - locales/*.json
+done:
+  - name: The English labels are still valid JSON
+    kind: file
+    file: locales/en.json
+    json: true
+budget:
+  minutes: 20
+  tokens: 100000
+taste:
+  - The shortest wording that stays clear
+  - Every label is in the target language
+auto_merge:
+  mode: earn
+  min_probability: 0.8
+  until_days: 30
+max_agents: 6
+`;
+
 export const RECORD_README = `# Larkspur Garden Co. decision record
 
 Steward keeps every decision about the larkspur-ap app here. This repo is the record; the app repo is the work.
@@ -153,6 +177,14 @@ const RULE_TASKS = [
 	"Hold invoices sent to a personal email address",
 	"Hold invoices that round to a whole thousand dollars",
 ];
+const LOCALE_TASKS = [
+	"Translate the invoice queue into Welsh",
+	"Translate the invoice queue into Icelandic",
+	"Translate the invoice queue into Catalan",
+	"Translate the invoice queue into Estonian",
+	"Translate the invoice queue into Basque",
+	"Translate the invoice queue into Latvian",
+];
 const UI_TASKS = [
 	"Show the hold reason under each held invoice",
 	"Sort held invoices to the top of the queue",
@@ -164,7 +196,12 @@ const UI_TASKS = [
 	"Make the queue readable on a phone",
 ];
 
-function patchFor(kind: "rules" | "ui", strong: boolean, i: number): string {
+function patchFor(kind: "rules" | "ui" | "locales", strong: boolean, i: number): string {
+	if (kind === "locales") {
+		return strong
+			? `+{\n+  "title": "Label ${i}",\n+  "pay": "Pay"\n+}`
+			: `+{\n+  "title": "Label ${i}: a much longer way to say the same short thing for the people reading it",\n+  "pay": "Please go ahead and pay this invoice now, when you are ready"\n+}`;
+	}
 	if (kind === "rules") {
 		return strong
 			? `+export function rule${i}(invoice, ctx) {\n+\tif (flagged(invoice, ctx)) return { code: "rule-${i}", message: \`Held: the account on file was changed from ••\${prev} on \${date}\` };\n+\treturn null;\n+}`
@@ -175,8 +212,8 @@ function patchFor(kind: "rules" | "ui", strong: boolean, i: number): string {
 		: `+\t<td class="hold-big">\${why}</td>\n+\t<style>.hold-big { font-size: 18px }</style>`;
 }
 
-function candidate(task: string, agent: string, kind: "rules" | "ui", strong: boolean, size: number, tests: number, i: number): CandidateEvidence {
-	const files = kind === "rules" ? [{ path: "src/rules.js", added: size, removed: 1 }, ...(tests ? [{ path: "test/rules.test.js", added: 6 * tests, removed: 0 }] : [])] : [{ path: "src/index.js", added: size, removed: 2 }];
+function candidate(task: string, agent: string, kind: "rules" | "ui" | "locales", strong: boolean, size: number, tests: number, i: number): CandidateEvidence {
+	const files = kind === "locales" ? [{ path: `locales/x${i}.json`, added: 10, removed: 0 }] : kind === "rules" ? [{ path: "src/rules.js", added: size, removed: 1 }, ...(tests ? [{ path: "test/rules.test.js", added: 6 * tests, removed: 0 }] : [])] : [{ path: "src/index.js", added: size, removed: 2 }];
 	return {
 		id: `${task}/${agent}`,
 		agent,
@@ -204,9 +241,9 @@ export function demoHistory(now = new Date()): DemoHistory {
 	const ledger: LedgerLine[] = [];
 	const records: DecisionRecord[] = [];
 	const day = (back: number) => new Date(now.getTime() - back * 864e5).toISOString();
-	const build = (kind: "rules" | "ui", tasks: string[], taste: string[], title: string, overruled: Set<number>) => {
+	const build = (kind: "rules" | "ui" | "locales", tasks: string[], taste: string[], title: string, overruled: Set<number>) => {
 		tasks.forEach((title_, i) => {
-			const task = `${kind === "rules" ? "r" : "u"}${100 + i}`;
+			const task = `${kind === "rules" ? "r" : kind === "ui" ? "u" : "l"}${100 + i}`;
 			const id = `d-${task}`;
 			const n = 3 + Math.floor(rand() * 2);
 			const agents = AGENTS.slice(i % 3, (i % 3) + n);
@@ -238,6 +275,7 @@ export function demoHistory(now = new Date()): DemoHistory {
 	};
 	build("rules", RULE_TASKS, ["The smallest change that passes every check", "Adds a test for the new rule", "The hold reason says what changed, in words an AP clerk understands"], "Payment rules", new Set());
 	build("ui", UI_TASKS, ["The smallest change that does the job", "Every hold shows its reason next to the invoice", "Does not break existing behaviour"], "Invoice queue page", new Set([5, 6, 7]));
+	build("locales", LOCALE_TASKS, ["The shortest wording that stays clear", "Every label is in the target language"], "Translations", new Set());
 	ledger.sort((a, b) => a.at.localeCompare(b.at));
 	const earned = day(18);
 	const grants = [
@@ -271,6 +309,7 @@ export function demoRecordFiles(now = new Date()): FileChange[] {
 		{ path: "thresholds.yaml", content: THRESHOLDS_YAML },
 		{ path: "playbooks/rules.yaml", content: RULES_PLAYBOOK },
 		{ path: "playbooks/ui.yaml", content: UI_PLAYBOOK },
+		{ path: "playbooks/locales.yaml", content: LOCALES_PLAYBOOK },
 		{ path: "ledger.jsonl", content: h.ledger.map((l) => JSON.stringify(l)).join("\n") + "\n" },
 		{ path: "preferences/grants.jsonl", content: h.grants.map((g) => JSON.stringify(g)).join("\n") + "\n" },
 		...h.records.map((r) => ({ path: `decisions/${r.id}.json`, content: JSON.stringify(r, null, 2) + "\n" })),

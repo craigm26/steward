@@ -14,6 +14,7 @@ import { globMatch, type DoneCheck } from "../record/playbook";
 import { claimTask, markDone } from "../work";
 import { chat } from "./model";
 import { parseReply } from "./reply";
+import { translation, type Variant } from "../demo/locales";
 export { parseReply } from "./reply";
 
 export interface RaceParams {
@@ -21,6 +22,8 @@ export interface RaceParams {
 	agent: string;
 	model: string;
 	rounds?: number;
+	/** A scripted agent (the scale run): writes a known translation variant instead of asking a model. */
+	script?: { code: string; variant: Variant };
 }
 
 /** The demo's six agents, six models. */
@@ -36,7 +39,9 @@ export const LINEUP: { agent: string; model: string }[] = [
 const describe = (d: DoneCheck) =>
 	d.kind === "build"
 		? `- ${d.name} (Steward runs \`npm run build\`, which runs the tests, then deploys a Preview)`
-		: `- ${d.name}: GET ${d.get}${Object.keys(d.expect).length ? ` must answer ${Object.entries(d.expect).map(([k, v]) => `${k}=${v}`).join(", ")}` : ""}${d.contains ? ` must contain "${d.contains}"` : ""}`;
+		: d.kind === "file"
+			? `- ${d.name}: ${d.file} must exist${d.json || d.like ? " and be valid JSON" : ""}${d.like ? ` with every key of ${d.like}, none empty` : ""}`
+			: `- ${d.name}: GET ${d.get}${Object.keys(d.expect).length ? ` must answer ${Object.entries(d.expect).map(([k, v]) => `${k}=${v}`).join(", ")}` : ""}${d.contains ? ` must contain "${d.contains}"` : ""}`;
 
 export class AgentWorkflow extends WorkflowEntrypoint<Env, RaceParams> {
 	async run(event: Readonly<WorkflowEvent<RaceParams>>, step: WorkflowStep) {
@@ -45,6 +50,7 @@ export class AgentWorkflow extends WorkflowEntrypoint<Env, RaceParams> {
 		const rounds = event.payload.rounds ?? 2;
 		const board = boardFor(env);
 		let tokens = 0;
+		if (event.payload.script) return this.scripted(step, event.payload);
 
 		// 1. Read the task and the code, plan, and claim the files to touch.
 		const plan = await step.do("plan and claim", { retries: { limit: 2, delay: "5 seconds" } }, async () => {
@@ -170,5 +176,29 @@ export class AgentWorkflow extends WorkflowEntrypoint<Env, RaceParams> {
 			feedback = verdict.failing || "the checks did not pass";
 		}
 		return { agent, model, tokens };
+	}
+
+	/** The scale run's scripted agent: claim one file, write its variant, say done. No model, no retry. */
+	private async scripted(step: WorkflowStep, p: RaceParams) {
+		const env = this.env;
+		const board = boardFor(env);
+		const { code, variant } = p.script!;
+		const file = `locales/${code}.json`;
+		const claimed = await step.do("claim", { retries: { limit: 6, delay: "3 seconds", backoff: "exponential" } }, async () => {
+			await board.registerAgent(p.agent, "scripted");
+			const c = await claimTask(env, p.agent, p.task, { files: [file], plan: `# Plan: ${p.agent} (scripted, ${variant})\n\nWrite ${file}.\n` });
+			return { fork: c.fork };
+		});
+		await step.do("write and push", { retries: { limit: 6, delay: "3 seconds", backoff: "exponential" } }, async () => {
+			const remote = await remoteFor(env, claimed.fork, "write", 300);
+			await commitFiles({ repo: remote, files: [{ path: file, content: translation(code, variant) }], message: `${p.agent}: translate the queue (${variant})`, author: { name: p.agent, email: `${p.agent}@agents.steward.invalid` } });
+			return true;
+		});
+		await step.do("say done", { retries: { limit: 6, delay: "3 seconds", backoff: "exponential" } }, async () => {
+			const cand = await board.candidate(`${p.task}/${p.agent}`);
+			if (!cand) throw new Error("no candidate");
+			return markDone(env, cand, `Wrote ${file} with every label translated.`, 0, () => {});
+		});
+		return { agent: p.agent, variant };
 	}
 }

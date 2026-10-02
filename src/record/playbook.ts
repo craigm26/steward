@@ -7,6 +7,7 @@ import { parseThresholds, parseYamlSubset, type Thresholds } from "../../vendor/
 
 export type DoneCheck =
 	| { name: string; kind: "build" }
+	| { name: string; kind: "file"; file: string; json?: boolean; like?: string; contains?: string }
 	| { name: string; kind: "probe"; get: string; expect: Record<string, string>; contains?: string; status: number };
 
 export interface Playbook {
@@ -66,6 +67,17 @@ export function parseDoneCheck(d: unknown, where: string): DoneCheck {
 	if (!isObj(d)) throw new Error(`${where}: expected a map`);
 	const name = str(d.name, `${where}.name`);
 	if (d.kind === "build") return { name, kind: "build" };
+	if (d.kind === "file") {
+		const file = str(d.file, `${where}.file`);
+		return {
+			name,
+			kind: "file",
+			file,
+			...(d.json === true || d.json === "true" ? { json: true } : {}),
+			...(d.like === undefined ? {} : { like: str(d.like, `${where}.like`) }),
+			...(d.contains === undefined ? {} : { contains: str(d.contains, `${where}.contains`) }),
+		};
+	}
 	if (d.kind === "probe" || d.kind === undefined) {
 		const get = str(d.get, `${where}.get`);
 		if (!get.startsWith("/")) throw new Error(`${where}.get: expected a path starting with /`);
@@ -80,7 +92,7 @@ export function parseDoneCheck(d: unknown, where: string): DoneCheck {
 			status: d.status === undefined ? 200 : num(d.status, `${where}.status`, 100),
 		};
 	}
-	throw new Error(`${where}.kind: expected build or probe`);
+	throw new Error(`${where}.kind: expected build, probe or file`);
 }
 
 export function parsePlaybook(text: string, file = "playbook"): Playbook {

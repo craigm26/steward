@@ -135,3 +135,27 @@ describe("model agents", () => {
 		expect(r.files.map((f) => [f.path, f.content])).toEqual([["src/rules.js", "export const B = 2;\n"], ["test/a.test.js", "test();\n"]]);
 	});
 });
+
+describe("the scale run's translations", () => {
+	test("the clean and wordy variants pass the file check; the broken ones fail it, each for its reason", async () => {
+		const { translation } = await import("../src/demo/locales");
+		const { runFileCheck } = await import("../src/probe");
+		const { readFileSync } = await import("node:fs");
+		const en = readFileSync(new URL("../demo/larkspur-ap/locales/en.json", import.meta.url), "utf8");
+		const check = { name: "fr", kind: "file" as const, file: "locales/fr.json", like: "locales/en.json" };
+		const run = (variant: Parameters<typeof translation>[1]) => runFileCheck(async (p) => (p === "locales/en.json" ? en : translation("fr", variant)), check);
+		expect((await run("good")).ok).toBe(true);
+		expect((await run("wordy")).ok).toBe(true);
+		expect((await run("missing")).detail).toContain("missing held_note");
+		expect((await run("empty")).detail).toContain("empty decision");
+		expect((await run("invalid")).detail).toContain("not valid JSON");
+	});
+	test("the rubric prefers the shorter wording on the locales history", async () => {
+		const h = demoHistory(new Date("2026-10-02T00:00:00Z"));
+		for (const r of h.records.filter((x) => x.state.path.id === "locales")) {
+			const v = await judge(rubricBackend(), r.state);
+			expect(v.pick).toBe(r.steward!.pick);
+			expect(v.probability).toBeGreaterThanOrEqual(0.8);
+		}
+	});
+});
