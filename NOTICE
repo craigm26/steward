@@ -1,0 +1,9 @@
+Steward
+Copyright 2026 Craig Merry
+
+Licensed under the Apache License, Version 2.0 (see LICENSE).
+
+Files under vendor/platatlas/ come from PlatAtlas (https://platatlas.com) and
+remain under the MIT License; see vendor/platatlas/LICENSE.
+
+This product depends on isomorphic-git (https://isomorphic-git.org), MIT License.

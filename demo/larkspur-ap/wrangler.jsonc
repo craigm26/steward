@@ -1,0 +1,18 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "larkspur-ap",
+  "main": "src/index.js",
+  "compatibility_date": "2026-10-01",
+  "vars": {
+    "ENVIRONMENT": "production"
+  },
+  // Each candidate branch gets its own Preview; nothing in it touches production.
+  "previews": {
+    "vars": {
+      "ENVIRONMENT": "preview"
+    }
+  },
+  "observability": {
+    "enabled": true
+  }
+}

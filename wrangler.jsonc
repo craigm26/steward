@@ -1,0 +1,21 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "steward",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-10-01",
+  "compatibility_flags": ["nodejs_compat"],
+  // Every repo Steward manages (the app, each agent's fork, the ledger) lives in this Artifacts namespace.
+  "artifacts": [
+    {
+      "binding": "ARTIFACTS",
+      "namespace": "steward"
+    }
+  ],
+  "vars": {
+    // The workers.dev subdomain of the account, used to name candidate Preview URLs.
+    "WORKERS_SUBDOMAIN": "craigm26"
+  },
+  "observability": {
+    "enabled": true
+  }
+}

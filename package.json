@@ -1,0 +1,24 @@
+{
+  "name": "steward",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Steward turns the pull request into a decision: agents race in their own Artifacts forks, a judge proposes one candidate, and a human steward decides.",
+  "license": "Apache-2.0",
+  "type": "module",
+  "engines": {
+    "node": ">=20"
+  },
+  "devDependencies": {
+    "typescript": "^7.0.2",
+    "wrangler": "4.146.0"
+  },
+  "dependencies": {
+    "isomorphic-git": "^1.42.6"
+  },
+  "scripts": {
+    "types": "wrangler types",
+    "typecheck": "wrangler types >/dev/null && tsc -p tsconfig.json",
+    "deploy": "wrangler deploy",
+    "spike": "node scripts/spike.mjs"
+  }
+}

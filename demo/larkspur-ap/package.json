@@ -1,0 +1,16 @@
+{
+  "name": "larkspur-ap",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Larkspur Garden Co. (fictional) accounts payable: decides which supplier invoices to pay and which to hold.",
+  "license": "Apache-2.0",
+  "type": "module",
+  "scripts": {
+    "test": "node --test",
+    "build": "node scripts/build-info.mjs && node --test",
+    "dev": "wrangler dev"
+  },
+  "devDependencies": {
+    "wrangler": "4.146.0"
+  }
+}
