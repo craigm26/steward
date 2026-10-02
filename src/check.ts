@@ -136,13 +136,13 @@ export async function runCheck(store: RecordStore, pathId: string, env: JudgeEnv
 	if (!report.pass) {
 		// Drift: on a failed check every auto-merge grant on the path stops, saying by how much the judge differs.
 		for (const g of grantsBefore.filter((g) => mine(g) && g.status === "active")) {
-			added.push({ kind: "suspend", id: g.id, at, reason: `the check of ${at.slice(0, 10)} failed: ${report.misses} of ${report.judged} past decisions differ from the steward's (bar ${report.max_acceptable_miss_rate})` });
+			added.push({ kind: "suspend", id: g.id, at, reason: `The check failed: ${report.misses} of ${report.judged} past decisions differ from the steward's, over the bar of ${Math.round(report.max_acceptable_miss_rate * 100)}%` });
 		}
 	} else {
 		// On a passing check, a grant whose own evidence now holds a wrong merge, or too little, still stops
 		// (PlatAtlas reviewReport). Its sentence speaks of signed cases; here those are merged decisions.
 		for (const s of reviewReport(grantsBefore.filter(mine), report as unknown as CheckReport, caseStateOf, at)) {
-			added.push({ ...s, reason: s.reason.replace(/the measure of/g, "the check of").replace(/would have signed/g, "would have merged").replace(/past cases/g, "past decisions") });
+			added.push({ ...s, reason: s.reason.replace(/the measure of \d{4}-\d{2}-\d{2}: /g, "The check: ").replace(/the measure of/g, "the check of").replace(/would have signed/g, "would have merged").replace(/past cases/g, "past decisions") });
 		}
 	}
 	const stillActive = grantsBefore.some((g) => mine(g) && g.status === "active" && !added.some((a) => (a as { id: string }).id === g.id));
@@ -173,7 +173,7 @@ export async function runCheck(store: RecordStore, pathId: string, env: JudgeEnv
 				min_probability: verdict.min_probability,
 				when: verdict.when,
 				until,
-				note: `earned by the check of ${at.slice(0, 10)}: ${verdict.evidence.would_sign} past decisions it would have merged on its own, none wrong`,
+				note: `Earned by the check: ${verdict.evidence.would_sign} past decisions the judge would have merged on its own, none wrong`,
 				evidence: { would_sign: verdict.evidence.would_sign, wrong: 0, measured_at: at, model: generatedBy.model },
 			});
 			note = `auto-merge earned on ${verdict.evidence.would_sign} past decisions, none wrong`;

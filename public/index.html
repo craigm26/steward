@@ -1,1 +1,27 @@
-<!doctype html><title>Steward</title><p>Steward
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Steward</title>
+<meta name="description" content="Steward turns the pull request into a decision: agents race in their own forks, a judge proposes one candidate, and a person decides.">
+<link rel="preload" href="/fonts/Archivo.ttf" as="font" type="font/ttf" crossorigin>
+<link rel="stylesheet" href="/styles.css">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M8 3 L10.2 4.6 Q12 5.9 13.8 4.6 L16 3 L22.5 6.2 L20.4 11.4 L18.2 10.4 L18.2 21.5 L5.8 21.5 L5.8 10.4 L3.6 11.4 L1.5 6.2 Z' fill='%231e5b3a'/%3E%3C/svg%3E">
+</head>
+<body>
+<header class="bar">
+	<a class="mark" href="#/board">Steward</a>
+	<span class="project" id="project"></span>
+	<nav aria-label="Views">
+		<a href="#/board" data-view="board">Board</a>
+		<a href="#/paths" data-view="paths">Paths</a>
+		<a href="#/why" data-view="why">Why</a>
+		<a href="#/ledger" data-view="ledger">Ledger</a>
+	</nav>
+	<div class="who" id="who"></div>
+</header>
+<main><div class="page" id="view" aria-live="polite"></div></main>
+<script type="module" src="/app.js"></script>
+</body>
+</html>

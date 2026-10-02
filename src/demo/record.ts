@@ -254,7 +254,7 @@ export function demoHistory(now = new Date()): DemoHistory {
 			min_probability: 0.8,
 			when: { path: "ui" },
 			until: new Date(now.getTime() + 12 * 864e5).toISOString().slice(0, 10),
-			note: "earned by an earlier check: 5 past decisions it would have merged on its own, none wrong (synthetic)",
+			note: "Earned by an earlier check: 5 past decisions the judge would have merged on its own, none wrong (synthetic)",
 			evidence: { would_sign: 5, wrong: 0, measured_at: earned, model: "mock" },
 			synthetic: true,
 		},
