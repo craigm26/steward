@@ -128,6 +128,23 @@ function drawWho() {
 	} else {
 		el.replaceChildren(live, h("span", null, "Watching"), h("button", { onclick: signIn }, "Sign in as steward"));
 	}
+	drawIntro();
+}
+
+/** For someone arriving from a link: what this board is and where to look, until they dismiss it. */
+const INTRO = "steward.intro-seen";
+function drawIntro() {
+	const el = $("#intro");
+	if (!el) return;
+	if (state.who.kind === "admin" || localStorage.getItem(INTRO)) return el.replaceChildren();
+	el.replaceChildren(
+		h(
+			"div",
+			{ class: "intro", role: "note" },
+			h("p", null, "A live Steward board for Larkspur Garden Co., a made-up company. Open a task to watch agents race for it and see the card the steward decides from. ", h("b", null, "Why"), " traces any line of the app to its decision, ", h("b", null, "Paths"), " shows where auto-merge was earned, and ", h("b", null, "Ledger"), " lists every merge. Anyone can watch; changing anything needs the steward key."),
+			h("button", { class: "quiet", onclick: () => { localStorage.setItem(INTRO, "1"); drawIntro(); } }, "Got it"),
+		),
+	);
 }
 function signIn() {
 	const existing = $(".pop");
