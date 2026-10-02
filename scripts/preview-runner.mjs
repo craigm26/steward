@@ -36,7 +36,8 @@ function token() {
 	cached = { token: JSON.parse(out).plaintext, until: Date.now() + 840_000 };
 	return cached.token;
 }
-const REMOTE = `https://71d59adbd067633aca3e95f915fbf2b4.artifacts.cloudflare.net/git/${NAMESPACE}/${APP}.git`;
+// The app repo's git remote, as Artifacts reports it for this account (or REMOTE to point elsewhere).
+const REMOTE = process.env.REMOTE ?? JSON.parse(sh("npx", ["wrangler", "artifacts", "repos", "get", APP, "--namespace", NAMESPACE, "--json"], { cwd: root })).remote;
 
 /** Production: when main moves, build it and `wrangler deploy` (what Workers Builds does on the production branch). */
 async function deployMain(prodUrl) {

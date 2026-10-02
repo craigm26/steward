@@ -18,7 +18,7 @@ The reset moves the app's main back to the `seed` tag, deletes every fork and ca
 | 5:10–6:20 | The check | The judge replayed on the steward's past calls; one path earns auto-merge, another loses it | **Paths**, **Run the check now** on Payment rules, then on Invoice queue page |
 | 6:20–7:10 | Scale | 120 scripted agents on 20 translation tasks, said to be scripted: 80 broken files bounced at gate 1, most decisions merged by the judge alone on a path that earned it, the rest sampled to the steward | **Paths**, run the check on Translations; then `curl -X POST "$STEWARD_URL/api/admin/scale" -H "authorization: Bearer $STEWARD_ADMIN_KEY"` and watch the board's totals; it settles in about two minutes |
 | 7:10–7:50 | Yours to run | Deploy to your own account, pick US or EU, see what is in the repo | README, `scripts/seed-app.mjs` |
-| 7:50–8:30 | Close | Every merge names the person who made the call | **Ledger** |
+| 7:50–8:30 | Close | Every merge records who made the call, and why: Dana's decisions by name, the judge's under the grant its path earned | **Ledger** |
 
 Things worth saying on camera, because they are true:
 
@@ -29,3 +29,17 @@ Things worth saying on camera, because they are true:
 - The past decisions the first check replays are synthetic and labeled so. Live decisions join them as they are made.
 
 To show a live auto-merge: after the check earns auto-merge on Payment rules, open **Unusual payment terms** and run one scripted agent that passes (`node agents/scripted.mjs --task t2 --kind terms --agents ada:small`). With a single passing candidate the judge is sure, and unless that decision is the 1 in 10 sampled for a person, it merges alone under the grant; the ledger says so.
+
+## The explainer film
+
+`film/` renders a 5:34 explainer from a recorded run rather than a screen recording: every product frame is the real UI in `public/`, drawn from API answers saved while the run happened, with the camera, highlights and captions laid over it.
+
+```sh
+node film/record.mjs race2          # during a live run: saves /api/board every 2 s to film/capture/race2
+node film/shoot.mjs                 # one shot per moment through the UI, with the boxes the camera aims at
+node film/voice.mjs                 # narration from film/script.json (Workers AI, Aura-2) and film/timeline.json
+node film/render.mjs --at 60,150    # check frames and a contact sheet in film/check/
+node film/render.mjs                # every frame, then film/out/steward-explainer.mp4
+```
+
+To narrate in your own voice, `node film/voice.mjs --list` names each line (`claims-3` is the third spoken line of the claims scene). Record the lines you want, save them as `film/audio/own/claims-3.wav` (or `.m4a`, `.mp3`), and run `voice.mjs` and `render.mjs` again: the picture follows the new timings, and any line you skip keeps the synthetic voice.

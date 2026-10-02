@@ -1,5 +1,12 @@
-node_modules/
-.wrangler/
 .dev.vars
+film/audio/
+film/capture/
+film/frames/
+film/out/
+film/shots/
 *.log
+node_modules/
 worker-configuration.d.ts
+.wrangler/
+film/stage/
+film/check/

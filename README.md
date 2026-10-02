@@ -54,7 +54,7 @@ Your repos stay in your account, and an Artifacts namespace keeps every repo in 
 You need a Cloudflare account on Workers Paid (Artifacts requires it), Node 20 or later, and git.
 
 ```sh
-git clone <this repo> steward && cd steward
+git clone https://github.com/craigm26/steward && cd steward
 npm install                      # pins wrangler 4.146; Artifacts needs 4.145 or later
 npx wrangler login
 ```
@@ -72,7 +72,7 @@ Then, once, in the dashboard: **Workers & Pages → larkspur-ap → Settings →
 
 Open the board, sign in with the steward key, open a task (or one of the two demo tasks), and press **Start the model agents**.
 
-To use Jev as the judge instead of the rubric, set `judge.engine: typesafe` in the record's `steward.yaml` and add the key: `npx wrangler secret put TYPESAFE_API_KEY`.
+To use Jev as the judge instead of the rubric, set `judge.engine: typesafe` in the record's `steward.yaml` and add the key: `npx wrangler secret put TYPESAFE_API_KEY`. A different judge can earn or lose auto-merge on different paths, so compare first: `TYPESAFE_API_KEY=… node scripts/judge-eval.mjs --engines mock,typesafe --live` replays both on every decision a person made and saves nothing.
 
 ## Agents
 
@@ -96,9 +96,10 @@ To use Jev as the judge instead of the rubric, set `judge.engine: typesafe` in t
 ## What is real and what is not
 
 - The demo company, Larkspur Garden Co., and all its data are made up.
-- The record starts with 16 synthetic past decisions so the check has history to replay on day one. They are marked `synthetic: true` and shown as synthetic.
+- The record starts with 22 synthetic past decisions (8 on payment rules, 8 on the invoice queue page, 6 on translations) so the check has history to replay on day one. They are marked `synthetic: true` and shown as synthetic.
 - Without a TypeSafe key the judge is a rubric that scores evidence against the playbook's taste rules. It is deterministic and labeled mock, and its confidence is a heuristic.
 - The referee is a real model on Workers AI, and it can be wrong; the steward reads it, it decides nothing.
+- The explainer film is narrated by a synthetic voice (Aura-2 on Workers AI). Its product footage is the real UI replaying answers recorded during a live run.
 
 ## Costs
 
@@ -120,7 +121,10 @@ npm run typecheck
 npx vitest run --pool=forks --maxWorkers=1
 node scripts/watch.mjs --task t1           # the board from a terminal
 node scripts/admin.mjs check rules         # run the check now
+node scripts/judge-eval.mjs --live         # each judge engine against the steward's past picks, nothing saved
 ```
+
+[`docs/DEMO.md`](docs/DEMO.md) covers recording a demo beat by beat, and rendering the explainer film from a recorded run.
 
 ## License
 
