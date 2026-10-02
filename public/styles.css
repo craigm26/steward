@@ -107,7 +107,7 @@ main { padding: 22px; }
 .page { max-width: 1480px; margin: 0 auto; }
 
 /* ------------------------------------------------------------------ board */
-.board { display: grid; grid-template-columns: 260px minmax(0, 1fr) 300px; gap: 22px; align-items: start; }
+.board { display: grid; grid-template-columns: 250px minmax(0, 1fr) 290px; gap: 22px; align-items: start; }
 .rail { position: sticky; top: 76px; display: grid; gap: 22px; }
 .tasks { display: grid; gap: 2px; }
 .tasks a { display: grid; grid-template-columns: auto 1fr; gap: 2px 10px; padding: 9px 10px; border-radius: var(--radius); text-decoration: none; color: var(--ink); border-left: 3px solid transparent; }
@@ -126,7 +126,12 @@ main { padding: 22px; }
 .taskhead { display: grid; gap: 8px; margin-bottom: 18px; }
 .taskhead .kicker { font-family: var(--mono); font-size: 12.5px; color: var(--ink-3); }
 
+.tablewrap { overflow-x: auto; }
 .claims { width: 100%; border-collapse: collapse; margin-top: 6px; }
+.claims .agent { flex-wrap: wrap; row-gap: 0; }
+.claims .agent .kind { flex-basis: 100%; padding-left: 38px; margin-top: -3px; }
+.claims .note { max-width: 44ch; }
+.claims ul.checklist { max-width: 50ch; }
 .claims th, .claims td { text-align: left; padding: 9px 10px; border-bottom: 1px solid var(--rail-2); vertical-align: middle; }
 .claims thead th { font-weight: 600; font-size: 12.5px; color: var(--ink-2); border-bottom: 1px solid var(--rail); font-stretch: 85%; }
 .claims thead th.file { font-family: var(--mono); font-weight: 500; font-size: 11.5px; white-space: nowrap; }

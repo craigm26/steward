@@ -221,11 +221,16 @@ function viewBoard() {
 	);
 	freshSeqs.clear();
 
-	return h("div", { class: "board" }, rail, h("section", null, b.candidates.length > 12 ? totals(b) : null, sel ? taskSheet(sel, b) : emptyBoard()), feed);
+	const onPath = sel ? b.candidates.filter((c) => b.tasks.find((t) => t.id === c.task)?.path === sel.path) : [];
+	return h("div", { class: "board" }, rail, h("section", null, onPath.length > 12 ? totals(b, sel.path) : null, sel ? taskSheet(sel, b) : emptyBoard()), feed);
 }
 
-/** The whole board in numbers, shown once many agents are racing. */
-function totals(b) {
+/** One path of the board in numbers, shown once many agents race on it. */
+function totals(board, path) {
+	const tasks = board.tasks.filter((t) => t.path === path);
+	const ids = new Set(tasks.map((t) => t.id));
+	const b = { tasks, candidates: board.candidates.filter((c) => ids.has(c.task)), decisions: board.decisions.filter((d) => ids.has(d.task)) };
+	const title = state.paths?.paths.find((p) => p.path === path)?.title ?? path;
 	const n = (f) => b.candidates.filter(f).length;
 	const ledgerish = b.decisions.filter((d) => d.status === "merged");
 	const alone = ledgerish.filter((d) => d.verdict?.kind === "agent" || d.judge?.route?.auto).length;
@@ -239,7 +244,7 @@ function totals(b) {
 		[String(ledgerish.length - alone), "decided by the steward"],
 		[String(b.decisions.filter((d) => d.status === "ready").length), "waiting for the steward"],
 	];
-	return h("div", { class: "sheet totals", style: "margin-bottom:16px" }, h("div", { class: "figures" }, cells.map(([v, l]) => h("div", { class: "fig" }, h("b", null, v), h("span", null, l)))));
+	return h("div", { class: "sheet totals", style: "margin-bottom:16px" }, h("p", { class: "small muted", style: "margin-bottom:8px" }, `On the ${title} path`), h("div", { class: "figures" }, cells.map(([v, l]) => h("div", { class: "fig" }, h("b", null, v), h("span", null, l)))));
 }
 
 function emptyBoard() {
@@ -270,7 +275,7 @@ function taskSheet(t, b) {
 				h(
 					"thead",
 					null,
-					h("tr", null, h("th", null, "Agent"), files.map((f) => h("th", { class: `file${fileCount[f] > 1 ? " contested" : ""}`, title: f }, f.split("/").pop())), h("th", null, "Gate 1"), h("th", null, "Preview")),
+					h("tr", null, h("th", null, "Agent"), files.map((f) => h("th", { class: `file${fileCount[f] > 1 ? " contested" : ""}`, title: f }, f.split("/").pop())), h("th", null, "Gate 1")),
 				),
 				h(
 					"tbody",
@@ -290,8 +295,8 @@ function taskSheet(t, b) {
 								c.checks.length ? h("span", { class: "score" }, `  ${passed}/${c.checks.length}`) : null,
 								c.note ? h("div", { class: `note${c.status === "bounced" || c.status === "over-budget" ? " bad" : ""}` }, c.note) : null,
 								c.checks.length ? h("details", { class: "checks" }, h("summary", null, "Checks"), checksList(c.checks)) : null,
+								c.preview_url && c.checks.some((k) => /Preview builds/.test(k.name) && k.ok) ? h("div", { class: "small" }, h("a", { href: c.preview_url, target: "_blank", rel: "noopener" }, "Open its Preview")) : null,
 							),
-							h("td", null, c.preview_url && c.checks.some((k) => /Preview builds/.test(k.name) && k.ok) ? h("a", { href: c.preview_url, target: "_blank", rel: "noopener" }, "Open") : h("span", { class: "faint small" }, ["claimed", "working", "checking"].includes(c.status) ? "Not yet" : "None")),
 						);
 					}),
 				),
@@ -310,7 +315,7 @@ function taskSheet(t, b) {
 			h("p", { class: "small faint" }, `On the ${pathTitle} path. Opened ${day(t.created_at)} at ${time(t.created_at)}.`),
 			t.done?.length ? h("details", { class: "checks" }, h("summary", null, `This task's checks (${t.done.length}), on top of the path's`), checksList(t.done.map((d) => ({ name: d.name, ok: true })))) : null,
 		),
-		table,
+		h("div", { class: "tablewrap" }, table),
 		state.who.kind === "admin" && t.status === "open"
 			? h("div", { class: "row", style: "margin-top:14px" }, h("button", { class: cands.length ? "quiet" : "primary", onclick: (e) => startRace(t.id, e.target) }, "Start the model agents"), h("span", { class: "small muted" }, "Six agents, each on its own Workers AI model, claim this task and race in their own forks."))
 			: null,
