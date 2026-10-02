@@ -52,10 +52,11 @@ function fixtures(over) {
 // ---------------------------------------------------------------- the shot list
 const open = (sel) => `document.querySelectorAll(${JSON.stringify(sel)}).forEach((d) => d.open = true)`;
 const shots = [];
-const boardShot = (name, s, task = "t2", post = "") => shots.push({ name, hash: `#/board/${task}`, fx: fixtures({ "/api/board": boardAt(s), "/api/paths": pathsNear(s) }), post });
+const boardShot = (name, s, task = "t2", post = "", h) => shots.push({ name, h, hash: `#/board/${task}`, fx: fixtures({ "/api/board": boardAt(s), "/api/paths": pathsNear(s) }), post });
 // The terms race (task t2), as the board showed it: opened, claimed by seven, checked, two bounced, five through.
-for (const s of [20, 31, 33, 38, 43, 50, 55, 64, 67, 78, 95, 106, 135, 141, 150]) boardShot(`race-${String(s).padStart(3, "0")}`, s);
-boardShot("race-064-checks", 64, "t2", `[...document.querySelectorAll("tr")].filter((r) => /nemotron|deepseek/.test(r.textContent)).forEach((r) => r.querySelectorAll("details").forEach((d) => d.open = true))`);
+// Seven rows run past 900 px, so these shots are taller and the camera pans down to the decision row and the bounces.
+for (const s of [20, 31, 33, 38, 43, 50, 55, 64, 67, 78, 95, 106, 135, 141, 150]) boardShot(`race-${String(s).padStart(3, "0")}`, s, "t2", "", 1000);
+boardShot("race-064-checks", 64, "t2", `[...document.querySelectorAll("tr")].filter((r) => /nemotron|deepseek/.test(r.textContent)).forEach((r) => r.querySelectorAll("details").forEach((d) => d.open = true))`, 1200);
 // The card: ready, Dana writing her reason, shipped. Taller than the screen (h), so the film can pan down a lane to
 // the referee's objection and the agent's own words.
 const ready = localPreviews(read("decision-d-t2-ready.json"));

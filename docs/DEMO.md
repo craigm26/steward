@@ -1,6 +1,6 @@
 # Recording the demo
 
-The rendered explainer (5:34) is built from a recorded run; the end of this page says how. To record the demo live instead, it runs about 8.5 minutes against the 5 to 10 minute limit. Record each beat on its own, the day it works, so the last two days are editing. Reset between takes:
+The rendered explainer (6:03) is built from a recorded run; the end of this page says how. To record the demo live instead, it runs about 8.5 minutes against the 5 to 10 minute limit. Record each beat on its own, the day it works, so the last two days are editing. Reset between takes:
 
 ```sh
 curl -X POST "$STEWARD_URL/api/admin/reset-demo" -H "authorization: Bearer $STEWARD_ADMIN_KEY"
@@ -32,10 +32,12 @@ To show a live auto-merge: after the check earns auto-merge on Payment rules, op
 
 ## The explainer film
 
-`film/` renders a 5:34 explainer from a recorded run rather than a screen recording: every product frame is the real UI in `public/`, drawn from API answers saved while the run happened, with the camera, highlights and captions laid over it.
+`film/` renders a 6:03 explainer from a recorded run rather than a screen recording: every product frame is the real UI in `public/`, drawn from API answers saved while the run happened, with the camera, highlights and captions laid over it.
 
 ```sh
-node film/record.mjs race2          # during a live run: saves /api/board every 2 s to film/capture/race2
+node film/record.mjs race3          # during a live run: saves /api/board every 2 s to film/capture/race3
+node film/snap.mjs race3 decision-d-t2-ready /api/decisions/d-t2   # a card, blame, paths or ledger at a moment
+node film/snap.mjs race3 previews t2                               # each candidate's Preview page
 node film/shoot.mjs                 # one shot per moment through the UI, with the boxes the camera aims at
 node film/voice.mjs                 # narration from film/script.json (Workers AI, Aura-2) and film/timeline.json
 node film/render.mjs --at 60,150    # check frames and a contact sheet in film/check/

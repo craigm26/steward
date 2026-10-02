@@ -19,42 +19,42 @@
     {
       "id": "claims",
       "start": 57.24,
-      "end": 106.6
+      "end": 113.44
     },
     {
       "id": "gate",
-      "start": 106.6,
-      "end": 152.56
+      "start": 113.44,
+      "end": 158.8
     },
     {
       "id": "card",
-      "start": 152.56,
-      "end": 207.039
+      "start": 158.8,
+      "end": 230.279
     },
     {
       "id": "why",
-      "start": 207.039,
-      "end": 223.279
+      "start": 230.279,
+      "end": 246.519
     },
     {
       "id": "check",
-      "start": 223.279,
-      "end": 265.199
+      "start": 246.519,
+      "end": 288.439
     },
     {
       "id": "scale",
-      "start": 265.199,
-      "end": 295.539
+      "start": 288.439,
+      "end": 322.659
     },
     {
       "id": "stack",
-      "start": 295.539,
-      "end": 314.259
+      "start": 322.659,
+      "end": 343.179
     },
     {
       "id": "close",
-      "start": 314.259,
-      "end": 334.299
+      "start": 343.179,
+      "end": 363.219
     }
   ],
   "lines": [
@@ -296,29 +296,37 @@
     },
     {
       "scene": "claims",
-      "text": "Six agents take it, each running a different model on Workers AI.",
+      "text": "Six agents take it, each running a different model on Workers AI. A seventh joins from outside: Claude Code.",
       "start": 70.44,
-      "end": 74.52,
+      "end": 78.72,
       "marks": [
         [
           0,
-          0.22
+          0.09
         ],
         [
           20,
           1.75
         ],
         [
-          65,
-          4.03
+          66,
+          4.96
+        ],
+        [
+          96,
+          7.2
+        ],
+        [
+          108,
+          8.14
         ]
       ]
     },
     {
       "scene": "claims",
       "text": "Each claims the files it will touch. Steward forks the app for every agent in Cloudflare Artifacts, and gives each a token for its own fork only. No agent can push to the app.",
-      "start": 75.12,
-      "end": 86.28,
+      "start": 79.32,
+      "end": 90.48,
       "marks": [
         [
           0,
@@ -344,55 +352,67 @@
     },
     {
       "scene": "claims",
-      "text": "Any agent that speaks HTTP and git can join the same way. The board updates live for everyone watching, from the same Durable Object that keeps the claims.",
-      "start": 86.88,
-      "end": 96.28,
+      "text": "Claude Code joined the way any agent can: a claim over HTTP, then plain git to its own fork. The board updates live for everyone watching, from the same Durable Object that keeps the claims.",
+      "start": 91.08,
+      "end": 102.88,
       "marks": [
         [
           0,
-          0.29
+          0.35
         ],
         [
-          58,
-          4.45
+          42,
+          2.56
         ],
         [
-          104,
-          6.86
+          61,
+          3.85
         ],
         [
-          155,
-          9.04
+          93,
+          5.84
+        ],
+        [
+          139,
+          9.18
+        ],
+        [
+          190,
+          11.66
         ]
       ]
     },
     {
       "scene": "claims",
-      "text": "All six claimed the rules file, so all six are rivals in one decision.",
-      "start": 96.88,
-      "end": 101.4,
+      "text": "All seven claimed the rules file, so all seven are rivals in one decision.",
+      "start": 103.48,
+      "end": 108.24,
       "marks": [
         [
           0,
-          0.23
+          0.27
         ],
         [
-          70,
-          4.28
+          34,
+          2.28
+        ],
+        [
+          74,
+          4.55
         ]
       ]
     },
     {
       "scene": "claims",
       "hold": true,
-      "start": 102,
-      "end": 105
+      "start": 108.84,
+      "end": 111.84
     },
     {
       "scene": "gate",
       "text": "Every push starts a Workflow, straight from the Artifacts event.",
-      "start": 106.6,
-      "end": 110.28,
+      "start": 113.44,
+      "end": 117.12,
       "marks": [
         [
           0,
@@ -411,8 +431,8 @@
     {
       "scene": "gate",
       "text": "Steward copies the commit to a candidate branch. A build runs the tests and publishes a Worker Preview of exactly that commit, and the gate probes the Preview with the task's checks.",
-      "start": 110.88,
-      "end": 121.56,
+      "start": 117.72,
+      "end": 128.4,
       "marks": [
         [
           0,
@@ -434,79 +454,67 @@
     },
     {
       "scene": "gate",
-      "text": "Gemma said it was done, but its change broke an existing test. It was bounced before anyone saw it. It read why, fixed the test, and passed.",
-      "start": 122.16,
-      "end": 132.16,
+      "text": "Two agents claimed only the rules file. Their change broke an existing test, in a file they had not claimed and could not touch. Gate one bounced them before anyone saw it. Each tried again, and stayed out.",
+      "start": 129,
+      "end": 141.88,
       "marks": [
         [
           0,
           0.25
         ],
         [
-          24,
-          1.7
+          40,
+          3.08
         ],
         [
-          63,
-          4.56
-        ],
-        [
-          100,
-          7
-        ],
-        [
-          113,
-          8.21
+          77,
+          5.18
         ],
         [
           129,
-          9.26
+          8.42
         ],
         [
-          140,
-          9.87
+          173,
+          11.09
+        ],
+        [
+          206,
+          12.71
         ]
       ]
     },
     {
       "scene": "gate",
-      "text": "Two agents had claimed only the rules file. They broke the same test, could not touch it, and stayed out.",
-      "start": 132.76,
-      "end": 139.44,
+      "text": "The other five passed, each with a live Preview.",
+      "start": 142.48,
+      "end": 145.68,
       "marks": [
         [
           0,
-          0.21
+          0.28
         ],
         [
-          44,
-          3.33
+          23,
+          1.67
         ],
         [
-          70,
-          4.93
-        ],
-        [
-          90,
-          5.91
-        ],
-        [
-          105,
-          6.58
+          48,
+          3
         ]
       ]
     },
     {
       "scene": "gate",
       "hold": true,
-      "start": 140.04,
-      "end": 142.04
+      "start": 146.28,
+      "end": 148.28
     },
     {
       "scene": "gate",
       "text": "Every fork also has a budget in minutes and tokens, and every agent commits its plan with each push, so a stopped agent resumes from its last commit.",
-      "start": 142.04,
-      "end": 150.96,
+      "start": 148.28,
+      "end": 157.2,
       "marks": [
         [
           0,
@@ -528,67 +536,95 @@
     },
     {
       "scene": "card",
-      "text": "When every rival has settled, the judge proposes one and names the rule that decided it. Here it picked Kimi: the smallest change.",
-      "start": 152.56,
-      "end": 160.56,
+      "text": "When every rival has settled, the judge proposes one and names the rule that decided it. The judge is Clef, Cloudflare's decision model on Workers AI.",
+      "start": 158.8,
+      "end": 169.24,
       "marks": [
         [
           0,
-          0.4
+          0.31
         ],
         [
           30,
-          1.82
+          2.13
         ],
         [
           89,
-          5.43
+          6.29
         ],
         [
-          110,
-          6.88
+          108,
+          7.8
         ],
         [
-          130,
-          7.99
+          150,
+          10.26
         ]
       ]
     },
     {
       "scene": "card",
-      "text": "A referee, another model, attacks every candidate and posts its strongest objection. On an earlier run it caught a wrong reason code that every check had passed.",
-      "start": 161.16,
-      "end": 171.84,
+      "text": "Here it picked Claude Code's change, because its hold reason says what changed in words a clerk understands.",
+      "start": 169.84,
+      "end": 176.56,
       "marks": [
         [
           0,
-          0.24
+          0.35
+        ],
+        [
+          37,
+          2.44
+        ],
+        [
+          108,
+          6.67
+        ]
+      ]
+    },
+    {
+      "scene": "card",
+      "text": "A referee, another model, attacks every candidate and posts its strongest objection. Against the judge's pick, it asked about an invoice with no terms at all: this rule would let it through.",
+      "start": 177.16,
+      "end": 188.72,
+      "marks": [
+        [
+          0,
+          0.3
         ],
         [
           26,
-          2.24
+          2.02
         ],
         [
           85,
-          6.2
+          6.06
         ],
         [
-          161,
-          10.57
+          111,
+          7.31
+        ],
+        [
+          159,
+          10.19
+        ],
+        [
+          190,
+          11.41
         ]
       ]
     },
     {
       "scene": "card",
       "hold": true,
-      "start": 172.44,
-      "end": 174.94
+      "start": 189.32,
+      "end": 191.82
     },
     {
       "scene": "card",
-      "text": "The card puts the evidence first: four live Previews side by side, the checks, the diff, and the agent's own words last.",
-      "start": 174.94,
-      "end": 183.62,
+      "text": "The card puts the evidence first: five live Previews side by side, the checks, the diff, and the agent's own words last.",
+      "start": 191.82,
+      "end": 200.899,
       "marks": [
         [
           0,
@@ -596,31 +632,31 @@
         ],
         [
           34,
-          2.54
+          2.51
         ],
         [
           67,
-          5.25
+          5.31
         ],
         [
           79,
-          5.72
+          6.22
         ],
         [
           89,
-          6.77
+          7.08
         ],
         [
           120,
-          8.38
+          8.95
         ]
       ]
     },
     {
       "scene": "card",
-      "text": "Dana disagrees. GLM's hold message tells the clerk the actual limit, and it tests both sides.",
-      "start": 184.22,
-      "end": 190.859,
+      "text": "Dana disagrees. GLM's hold reason says the same thing, net ninety against the sixty-day limit, in three fewer lines. With the reasons this close, the smallest change decides.",
+      "start": 201.499,
+      "end": 214.099,
       "marks": [
         [
           0,
@@ -628,23 +664,35 @@
         ],
         [
           16,
-          1.67
+          1.73
         ],
         [
-          69,
-          5.1
+          55,
+          4.43
         ],
         [
-          93,
-          6.56
+          95,
+          7.02
+        ],
+        [
+          117,
+          8.99
+        ],
+        [
+          146,
+          10.77
+        ],
+        [
+          174,
+          12.32
         ]
       ]
     },
     {
       "scene": "card",
       "text": "Shipping a different candidate takes one click and a reason, and the reason goes into the record.",
-      "start": 191.459,
-      "end": 197.419,
+      "start": 214.699,
+      "end": 220.659,
       "marks": [
         [
           0,
@@ -663,8 +711,8 @@
     {
       "scene": "card",
       "text": "It merges as one commit on main, carrying the decision's id.",
-      "start": 198.019,
-      "end": 202.339,
+      "start": 221.259,
+      "end": 225.579,
       "marks": [
         [
           0,
@@ -683,14 +731,14 @@
     {
       "scene": "card",
       "hold": true,
-      "start": 202.939,
-      "end": 205.439
+      "start": 226.179,
+      "end": 228.679
     },
     {
       "scene": "why",
       "text": "Every merge is one commit on main, so every line traces back to one decision.",
-      "start": 207.039,
-      "end": 212.159,
+      "start": 230.279,
+      "end": 235.399,
       "marks": [
         [
           0,
@@ -709,8 +757,8 @@
     {
       "scene": "why",
       "text": "Click a line, and Steward shows the task, the rivals it beat, the judge's pick, the objection, and who decided, and why.",
-      "start": 212.759,
-      "end": 221.679,
+      "start": 235.999,
+      "end": 244.919,
       "marks": [
         [
           0,
@@ -749,8 +797,8 @@
     {
       "scene": "check",
       "text": "Auto-merge is earned, path by path. Every week the judge is replayed on the steward's past decisions. Most of that history is made up for this demo, and labeled so.",
-      "start": 223.279,
-      "end": 234.399,
+      "start": 246.519,
+      "end": 257.639,
       "marks": [
         [
           0,
@@ -781,8 +829,8 @@
     {
       "scene": "check",
       "text": "On payment rules, Dana's overrule just now counts against the judge, so that path stays with her.",
-      "start": 234.999,
-      "end": 241.119,
+      "start": 258.239,
+      "end": 264.359,
       "marks": [
         [
           0,
@@ -805,8 +853,8 @@
     {
       "scene": "check",
       "text": "On the queue page, she overruled it three times out of eight, so that path lost auto-merge.",
-      "start": 241.719,
-      "end": 247.359,
+      "start": 264.959,
+      "end": 270.599,
       "marks": [
         [
           0,
@@ -829,8 +877,8 @@
     {
       "scene": "check",
       "text": "On translations, it matched her every time, so that path earned it. Even there, one decision in ten still goes to a person.",
-      "start": 247.959,
-      "end": 256.359,
+      "start": 271.199,
+      "end": 279.599,
       "marks": [
         [
           0,
@@ -857,8 +905,8 @@
     {
       "scene": "check",
       "text": "And between checks, an overrule of a decision the judge would have merged alone stops that path's auto-merge at once.",
-      "start": 256.959,
-      "end": 263.599,
+      "start": 280.199,
+      "end": 286.839,
       "marks": [
         [
           0,
@@ -873,8 +921,8 @@
     {
       "scene": "scale",
       "text": "Now at scale: one hundred and twenty scripted agents on twenty translation tasks.",
-      "start": 265.199,
-      "end": 270.079,
+      "start": 288.439,
+      "end": 293.319,
       "marks": [
         [
           0,
@@ -893,8 +941,8 @@
     {
       "scene": "scale",
       "text": "Each translation is data, so the gate reads the file at the candidate's commit instead of building a Preview.",
-      "start": 270.679,
-      "end": 277.319,
+      "start": 293.919,
+      "end": 300.559,
       "marks": [
         [
           0,
@@ -913,62 +961,70 @@
     {
       "scene": "scale",
       "hold": true,
-      "start": 277.919,
-      "end": 280.419
+      "start": 301.159,
+      "end": 303.659
     },
     {
       "scene": "scale",
-      "text": "Eighty broken files bounced at the gate. The judge merged sixteen decisions on its own and sent four to the steward, in about two minutes.",
-      "start": 280.419,
-      "end": 288.499,
+      "text": "Eighty broken files bounced at the gate. The judge merged nineteen decisions on its own, and sent one to the steward: the one in ten that still goes to a person.",
+      "start": 303.659,
+      "end": 313.299,
       "marks": [
         [
           0,
-          0.26
+          0.22
         ],
         [
           41,
-          2.66
+          2.78
         ],
         [
-          117,
-          6.85
+          89,
+          5.46
         ],
         [
-          138,
-          7.97
+          118,
+          7.25
+        ],
+        [
+          161,
+          9.36
         ]
       ]
     },
     {
       "scene": "scale",
-      "text": "These agents are scripted, so this shows throughput, not model quality.",
-      "start": 289.099,
-      "end": 293.939,
+      "text": "It all settled in about two and a half minutes. These agents are scripted, so this shows throughput, not model quality.",
+      "start": 313.899,
+      "end": 321.059,
       "marks": [
         [
           0,
-          0.27
+          0.11
         ],
         [
-          27,
-          2.02
+          48,
+          2.97
         ],
         [
-          53,
-          3.55
+          75,
+          4.5
         ],
         [
-          71,
-          4.46
+          101,
+          5.99
+        ],
+        [
+          119,
+          6.92
         ]
       ]
     },
     {
       "scene": "stack",
       "text": "It is all Cloudflare. Artifacts holds the app, every fork, and the decision record.",
-      "start": 295.539,
-      "end": 301.739,
+      "start": 322.659,
+      "end": 328.859,
       "marks": [
         [
           0,
@@ -994,37 +1050,49 @@
     },
     {
       "scene": "stack",
-      "text": "A Durable Object runs the board. Workflows run the gate and the decision. Workers AI runs the agents and the referee, and Worker Previews show each candidate.",
-      "start": 302.339,
-      "end": 312.659,
+      "text": "A Durable Object runs the board. Workflows run the gate and the decision. Workers AI runs the agents, the referee, and Clef, the judge. Worker Previews show each candidate.",
+      "start": 329.459,
+      "end": 341.579,
       "marks": [
         [
           0,
-          0.28
+          0.3
         ],
         [
           33,
-          2.65
+          2.86
         ],
         [
           74,
-          5.11
+          5.23
         ],
         [
-          118,
-          8.3
+          102,
+          7.27
         ],
         [
-          158,
-          10.06
+          115,
+          8.06
+        ],
+        [
+          125,
+          8.85
+        ],
+        [
+          136,
+          10
+        ],
+        [
+          172,
+          11.86
         ]
       ]
     },
     {
       "scene": "close",
       "text": "Steward deploys to your own account, with your repositories kept in the United States or the European Union. The code is open source.",
-      "start": 314.259,
-      "end": 322.499,
+      "start": 343.179,
+      "end": 351.419,
       "marks": [
         [
           0,
@@ -1047,8 +1115,8 @@
     {
       "scene": "close",
       "text": "Code is cheap now. Judgment is not. With Steward, every merge records who made the call, and why.",
-      "start": 323.099,
-      "end": 329.699,
+      "start": 352.019,
+      "end": 358.619,
       "marks": [
         [
           0,
@@ -1075,9 +1143,9 @@
     {
       "scene": "close",
       "hold": true,
-      "start": 330.299,
-      "end": 331.799
+      "start": 359.219,
+      "end": 360.719
     }
   ],
-  "duration": 334.299
+  "duration": 363.219
 }

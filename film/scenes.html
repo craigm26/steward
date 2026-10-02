@@ -254,79 +254,89 @@ function build() {
 	// --- claims: the board, live
 	const c = "claims";
 	chap(S(c).start - 0.3, S("gate").start, "Claims", "a real run, start to finish");
-	key(S(c).start - 0.3, "race-171", 1.0, [800, 450]);
-	key(at(c, 0, 1), "race-171", 1.12, [700, 340], 5.6);
-	key(atw(c, 1, "opens a task", 0.4), "race-171", 1.5, mid(R("race-171", ".taskhead")));
-	hl(atw(c, 1, "opens a task", 0.5), at(c, 1, 1) + 0.4, "race-171", R("race-171", ".taskhead"), "brass", "Dana's task, with its checks");
-	key(at(c, 2, 0), "race-175", 1.3, [700, 470]);
-	key(at(c, 2, 0.3), "race-177", 1.3, [700, 470]);
-	key(at(c, 2, 0.55), "race-179", 1.3, [700, 480]);
-	key(at(c, 2, 0.8), "race-184", 1.3, [700, 500]);
-	const agentCol = union(R("race-184", "th", "Agent"), R("race-184", "row", "qwen"));
-	hl(atw(c, 2, "each running"), at(c, 3, 0) + 0.2, "race-184", { ...agentCol, w: 290 }, "brass", "Six agents, six Workers AI models", "right");
-	const rulesTh = R("race-184", "th", "rules.js"), testTh = R("race-184", "th", "rules.test.js");
+	key(S(c).start - 0.3, "race-020", 1.0, [800, 450]);
+	key(at(c, 0, 1), "race-020", 1.12, [700, 340], 5.6);
+	key(atw(c, 1, "opens a task", 0.4), "race-020", 1.5, mid(R("race-020", ".taskhead")));
+	hl(atw(c, 1, "opens a task", 0.5), at(c, 1, 1) + 0.4, "race-020", R("race-020", ".taskhead"), "brass", "Dana's task, with its checks");
+	key(at(c, 2, 0), "race-031", 1.25, [720, 480]);
+	key(at(c, 2, 0.12), "race-033", 1.25, [720, 490]);
+	key(at(c, 2, 0.25), "race-038", 1.25, [720, 520]);
+	const agentCol = union(R("race-038", "th", "Agent"), R("race-038", "row", "qwen"));
+	const models = union(R("race-038", "row", "deepseek"), R("race-038", "row", "qwen"));
+	hl(atw(c, 2, "each running"), atw(c, 2, "A seventh joins"), "race-038", { ...models, w: 290 }, "brass", "Six agents, six Workers AI models", "right");
+	hl(atw(c, 2, "A seventh joins", 0.2), at(c, 3, 0) + 0.3, "race-038", R("race-038", "row", "claude-code"), "brass", "Claude Code, an outside agent", "above");
+	const rulesTh = R("race-038", "th", "rules.js"), testTh = R("race-038", "th", "rules.test.js");
 	const fileCols = { x: rulesTh.x, y: agentCol.y, w: testTh.x + testTh.w - rulesTh.x, h: agentCol.h };
-	key(at(c, 3, 0), "race-184", 1.3, [760, 520]);
-	hl(at(c, 3, 0.02), atw(c, 3, "Steward forks", 0.4), "race-184", fileCols, "brass", "The files each one will touch", "right");
-	key(atw(c, 3, "Steward forks", 1.2), "race-184", 1.0, [800, 450], 1.6);
-	key(at(c, 4, 0) + 0.4, "race-184", 1.0, [800, 450], 1.4);
-	key(atw(c, 4, "The board updates", 0.6), "race-184", 1.12, [1150, 476]);
-	hl(atw(c, 4, "The board updates", 0.6), at(c, 4, 1) + 0.3, "race-184", R("race-184", ".feed"), "turf", "Live, from the board's Durable Object", "leftmid");
-	key(at(c, 5, 0), "race-184", 1.3, [760, 560]);
-	hl(atw(c, 5, "All six claimed"), H(c).start + 1.6, "race-184", { ...rulesTh, h: agentCol.h }, "flag", "All six claimed rules.js", "right");
-	hl(atw(c, 5, "so all six are rivals"), H(c).start + 1.6, "race-184", R("race-184", ".decisionrow"), "flag", "So they are rivals in one decision", "above");
-	key(H(c).start + 2.2, "race-184", 1.0, [800, 450], 1.6);
+	key(at(c, 3, 0), "race-038", 1.25, [760, 540]);
+	hl(at(c, 3, 0.02), atw(c, 3, "Steward forks", 0.4), "race-038", fileCols, "brass", "The files each one will touch", "right");
+	key(atw(c, 3, "Steward forks", 1.2), "race-038", 1.0, [800, 450], 1.6);
+	key(at(c, 4, 0) + 0.4, "race-038", 1.0, [800, 450], 1.4);
+	key(atw(c, 4, "The board updates", 0.6), "race-038", 1.08, [1150, 520]);
+	hl(atw(c, 4, "The board updates", 0.6), at(c, 4, 1) + 0.3, "race-038", R("race-038", ".feed"), "turf", "Live, from the board's Durable Object", "leftmid");
+	key(at(c, 5, 0), "race-038", 1.2, [760, 600]);
+	hl(atw(c, 5, "All seven claimed"), H(c).start + 1.6, "race-038", { ...rulesTh, h: agentCol.h }, "flag", "All seven claimed rules.js", "right");
+	hl(atw(c, 5, "so all seven are rivals"), H(c).start + 1.6, "race-038", R("race-038", ".decisionrow"), "flag", "So they are rivals in one decision", "above");
+	key(H(c).start + 2.2, "race-038", 1.0, [800, 500], 1.6);
 
 	// --- gate 1: does it work?
 	const g = "gate";
 	chap(S(g).start, S("card").start, "Gate 1", "does it work?");
-	key(S(g).start, "race-194", 1.2, [780, 560]);
-	key(at(g, 1, 1), "race-194", 1.4, [900, 600], 9);
-	const gem206 = R("race-206-checks", "row", "gemma");
-	key(at(g, 2, 0), "race-206-checks", 1.45, mid(gem206));
-	hl(atw(g, 2, "but its change broke"), atw(g, 2, "It read why"), "race-206-checks", gem206, "flag", "Said done, broke a test: bounced", "above");
-	key(atw(g, 2, "It read why"), "race-235", 1.45, mid(R("race-235", "row", "gemma")));
-	const gem247 = R("race-247", "row", "gemma");
-	key(atw(g, 2, "and passed", -0.5), "race-247", 1.45, mid(gem247));
-	hl(atw(g, 2, "and passed", -0.3), at(g, 2, 1) + 0.5, "race-247", gem247, "turf", "Fixed the test: passed");
-	key(at(g, 3, 0), "race-267", 1.25, [780, 640]);
-	const ds = R("race-267", "row", "deepseek"), nm = R("race-267", "row", "nemotron");
-	hl(atw(g, 3, "Two agents"), H(g).start + 0.6, "race-267", union(ds, nm), "flag", "Claimed only rules.js", "above");
-	hl(atw(g, 3, "could not touch it"), H(g).start + 0.6, "race-267", union(R("race-267", "cell2", "deepseek"), R("race-267", "cell2", "nemotron")), "flag", "The test file was not in their claim", "right");
-	key(H(g).start + 0.3, "race-440", 1.0, [800, 450]);
-	key(at(g, 4, 0.5), "race-452", 1.0, [800, 450]);
+	key(S(g).start, "race-043", 1.2, [780, 560]);
+	key(at(g, 1, 0.45), "race-050", 1.2, [800, 580]);
+	key(at(g, 1, 1), "race-050", 1.35, [880, 620], 5);
+	const ds = R("race-064-checks", "row", "deepseek"), nm = R("race-064-checks", "row", "nemotron");
+	const both = union(ds, nm);
+	key(at(g, 2, 0), "race-064-checks", 1.15, [800, 830]);
+	hl(atw(g, 2, "Two agents"), atw(g, 2, "Gate one bounced"), "race-064-checks", union(R("race-064-checks", "cell1", "deepseek"), R("race-064-checks", "cell2", "nemotron")), "flag", "Claimed only rules.js", "left");
+	hl(atw(g, 2, "Their change broke"), atw(g, 2, "Each tried again"), "race-064-checks", both, "flag", "The test they broke: an ordinary invoice with a purchase order is paid", "above");
+	hl(atw(g, 2, "Gate one bounced"), atw(g, 2, "Each tried again"), "race-064-checks", union(R("race-064-checks", "cell3", "deepseek"), R("race-064-checks", "cell3", "nemotron")), "flag");
+	key(atw(g, 2, "Each tried again", -0.2), "race-141", 1.2, [800, 760]);
+	hl(atw(g, 2, "Each tried again"), at(g, 3, 0) + 0.2, "race-141", union(R("race-141", "row", "deepseek"), R("race-141", "row", "nemotron")), "flag", "Bounced again: out", "above");
+	const five = union(R("race-141", "row", "claude-code"), R("race-141", "row", "qwen"));
+	key(at(g, 3, 0), "race-141", 1.15, [800, 560]);
+	hl(at(g, 3, 0.05), H(g).start + 1.4, "race-141", { ...five, x: R("race-141", "cell3", "claude-code").x, w: R("race-141", "cell3", "claude-code").w }, "turf", "Five through, each with a Preview", "above");
+	key(H(g).start + 1.0, "race-150", 1.0, [800, 500], 1.4);
+	key(at(g, 4, 0.5), "race-150", 1.0, [800, 500]);
 
 	// --- the card: is it the one to ship?
 	const k = "card";
 	chap(S(k).start, S("why").start, "The card", "is it the one to ship?");
+	const proposal = R("card-ready", ".proposal");
 	key(S(k).start, "card-ready", 1.0, [800, 450]);
-	key(atw(k, 0, "the judge proposes one", 0.6), "card-ready", 1.2, [560, 330]);
-	hl(atw(k, 0, "the judge proposes one", 0.6), at(k, 0, 1) + 0.4, "card-ready", R("card-ready", ".proposal"), "brass", "The judge's pick and rule (a rubric here)", "right");
-	hl(atw(k, 0, "Here it picked Kimi"), at(k, 0, 1) + 0.4, "card-ready", R("card-ready", "lane.tag", "kimi"), "brass");
-	key(at(k, 1, 0) + 0.3, "card-ready", 1.25, [700, 860]);
-	key(H(k, 0).end, "card-ready", 1.25, [880, 860], 10.5);
-	["kimi", "gemma", "glm", "qwen"].forEach((who, i) => {
-		const a = atw(k, 1, "attacks every candidate", 0.4 + i * 0.9);
-		hl(a, H(k, 0).end - 0.2, "card-ready", R("card-ready", "lane.objection", who), "flag", i === 0 ? "The referee's strongest objection" : undefined, "above");
+	key(atw(k, 0, "the judge proposes one", 0.6), "card-ready", 1.1, [560, 380]);
+	hl(atw(k, 0, "the judge proposes one", 0.6), at(k, 0, 1) + 0.3, "card-ready", proposal, "brass", "The judge's pick, and the rule that decided it", "right");
+	hl(atw(k, 0, "The judge is Clef"), at(k, 0, 1) + 0.3, "card-ready", { x: proposal.x + 12, y: proposal.y + proposal.h - 28, w: 600, h: 20 }, "turf", "Clef, on Workers AI", "below");
+	const ccWords = R("card-ready", "lane.words", "claude-code");
+	key(at(k, 1, 0), "card-ready", 1.2, [420, 560]);
+	key(atw(k, 1, "because its hold reason", -0.2), "card-ready", 1.2, [420, 900], 1.2);
+	hl(at(k, 1, 0.05), atw(k, 1, "because its hold reason"), "card-ready", R("card-ready", "lane.tag", "claude-code"), "brass", "Claude Code's change", "right");
+	hl(atw(k, 1, "because its hold reason"), at(k, 1, 1) + 0.4, "card-ready", { ...ccWords, h: ccWords.h }, "brass", "Its reason gives the terms: net 90", "right");
+	key(at(k, 2, 0) + 0.3, "card-ready", 1.25, [700, 880]);
+	key(H(k, 0).end, "card-ready", 1.25, [900, 880], 11);
+	hl(atw(k, 2, "Against the judge's pick", -0.3), H(k, 0).end - 0.2, "card-ready", R("card-ready", "lane.objection", "claude-code"), "flag", "No terms at all: this rule pays it", "above");
+	["gemma", "glm", "kimi", "qwen"].forEach((who, i) => {
+		const a = atw(k, 2, "attacks every candidate", 0.4 + i * 0.6);
+		hl(a, H(k, 0).end - 0.2, "card-ready", R("card-ready", "lane.objection", who), "flag", i === 0 ? "The referee's strongest objection, on each" : undefined, "above");
 	});
-	key(at(k, 2, 0) + 0.5, "card-ready", 1.0, [800, 450], 1.6);
-	const lanes4 = ["kimi", "gemma", "glm", "qwen"];
-	hl(atw(k, 2, "four live Previews"), atw(k, 2, "the checks,"), "card-ready", union(...lanes4.map((w) => R("card-ready", "lane.frame", w))), "turf", "Four live Previews, side by side");
-	hl(atw(k, 2, "the checks,"), atw(k, 2, "and the agent's own words"), "card-ready", union(...lanes4.map((w) => R("card-ready", "lane.figures", w))), "turf", "The checks and the diff");
-	key(atw(k, 2, "and the agent's own words", 0.9), "card-ready", 1.0, [800, 800], 1.3);
-	hl(atw(k, 2, "and the agent's own words", 0.6), at(k, 2, 1) + 0.5, "card-ready", union(...lanes4.map((w) => R("card-ready", "lane.words", w))), "turf", "The agent's own words, last", "above");
-	key(atw(k, 3, "GLM's hold message"), "card-ready", 1.4, [886, 740]);
-	hl(atw(k, 3, "GLM's hold message", 0.3), at(k, 3, 1) + 0.4, "card-ready", R("card-ready", "lane.words", "glm"), "turf", "Its reason states the terms", "right");
-	hl(atw(k, 3, "and it tests both sides"), at(k, 3, 1) + 0.4, "card-ready", R("card-ready", "lane.figures", "glm"), "turf", "Two tests added", "right");
+	key(at(k, 3, 0) + 0.5, "card-ready", 1.0, [800, 450], 1.6);
+	const lanes5 = ["claude-code", "gemma", "glm", "kimi", "qwen"];
+	hl(atw(k, 3, "five live Previews"), atw(k, 3, "the checks,"), "card-ready", union(...lanes5.map((w) => R("card-ready", "lane.frame", w))), "turf", "Five live Previews, side by side");
+	hl(atw(k, 3, "the checks,"), atw(k, 3, "and the agent's own words"), "card-ready", union(...lanes5.map((w) => R("card-ready", "lane.figures", w))), "turf", "The checks and the diff");
+	key(atw(k, 3, "and the agent's own words", 0.9), "card-ready", 1.0, [800, 820], 1.3);
+	hl(atw(k, 3, "and the agent's own words", 0.6), at(k, 3, 1) + 0.5, "card-ready", union(...lanes5.map((w) => R("card-ready", "lane.words", w))), "turf", "The agent's own words, last", "above");
+	key(atw(k, 4, "GLM's hold reason"), "card-ready", 1.3, [580, 640]);
+	hl(atw(k, 4, "GLM's hold reason", 0.3), at(k, 4, 1) + 0.4, "card-ready", R("card-ready", "lane.words", "glm"), "turf", "The same reason: net 90 against 60 days", "right");
+	hl(atw(k, 4, "in three fewer lines"), at(k, 4, 1) + 0.4, "card-ready", R("card-ready", "lane.figures", "glm"), "turf", "+24 −2", "above");
+	hl(atw(k, 4, "in three fewer lines"), at(k, 4, 1) + 0.4, "card-ready", R("card-ready", "lane.figures", "claude-code"), "brass", "+27 −2", "above");
 	const ship = union(R("card-reason", "lanedetails.ship", "glm"), R("card-reason", "lanebutton", "glm"));
-	key(at(k, 4, 0), "card-reason", 1.5, [800, 940]);
-	hl(at(k, 4, 0.06), atw(k, 4, "and the reason goes"), "card-reason", ship, "turf", "One click, and a reason", "right");
+	key(at(k, 5, 0), "card-reason", 1.5, [800, 960]);
+	hl(at(k, 5, 0.06), atw(k, 5, "and the reason goes"), "card-reason", ship, "turf", "One click, and a reason", "right");
 	const verdict = R("card-merged", ".verdict");
-	key(atw(k, 4, "and the reason goes"), "card-merged", 1.3, mid(verdict));
-	hl(atw(k, 4, "and the reason goes", 0.4), H(k, 1).start + 1.2, "card-merged", verdict, "turf", "The reason, in the record", "right");
-	key(at(k, 5, 0) + 0.2, "card-merged", 1.1, [800, 330]);
-	// The verdict's last line, "On main as 9f36599": the squash commit carries a Steward-Decision: d-t2 trailer.
-	hl(atw(k, 5, "carrying"), H(k, 1).start + 1.2, "card-merged", { x: verdict.x + 12, y: verdict.y + verdict.h - 30, w: 236, h: 22 }, "brass", "On main as 9f36599, with Steward-Decision: d-t2", "right");
+	key(atw(k, 5, "and the reason goes"), "card-merged", 1.3, mid(verdict));
+	hl(atw(k, 5, "and the reason goes", 0.4), H(k, 1).start + 1.2, "card-merged", verdict, "turf", "The reason, in the record", "right");
+	key(at(k, 6, 0) + 0.2, "card-merged", 1.1, [800, 340]);
+	// The verdict's last line, "On main as d12231e": the squash commit carries a Steward-Decision: d-t2 trailer.
+	hl(atw(k, 6, "carrying"), H(k, 1).start + 1.2, "card-merged", { x: verdict.x + 12, y: verdict.y + verdict.h - 30, w: 236, h: 22 }, "brass", "On main as d12231e, with Steward-Decision: d-t2", "right");
 	key(H(k, 1).start + 1.8, "card-merged", 1.0, [800, 450], 1.2);
 
 	// --- why-blame
@@ -335,7 +345,7 @@ function build() {
 	key(S(w).start, "why-plain", 1.3, [600, 400]);
 	hl(atw(w, 0, "so every line", -0.3), at(w, 1, 0) + 0.3, "why-plain", { x: 296, y: R("why-plain", "fromline", "5").y, w: 80, h: 22 }, "brass", "The decision that put this line here", "right");
 	key(at(w, 1, 0), "why", 1.0, [800, 450]);
-	key(atw(w, 1, "Steward shows"), "why", 1.22, [1330, 470]);
+	key(atw(w, 1, "Steward shows"), "why", 1.22, [1330, 480]);
 	hl(at(w, 1, 0) + 0.1, S(w).end, "why", R("why", ".code tr.sel"), "brass");
 	const vr = R("why", "whyDIV.verdict"), ob = R("why", "whyDIV.objection");
 	const pick = { x: vr.x, y: vr.y + vr.h + 6, w: vr.w, h: ob.y - (vr.y + vr.h) - 18 };
@@ -351,7 +361,7 @@ function build() {
 	hl(atw(ch, 0, "Most of that history"), at(ch, 0, 1) + 0.4, "paths-before", R("paths-before", "path", "Invoice queue page"), "brass", "Made-up history, labeled synthetic", "above");
 	const pr = (shot, title) => R(shot, "path", title);
 	key(at(ch, 1, 0), "paths-rules", 1.15, [720, mid(pr("paths-rules", "Payment rules"))[1]]);
-	hl(atw(ch, 1, "Dana's overrule"), at(ch, 1, 1) + 0.3, "paths-rules", pr("paths-rules", "Payment rules"), "flag", "1 of 10 differ: her overrule. The path stays hers");
+	hl(atw(ch, 1, "Dana's overrule"), at(ch, 1, 1) + 0.3, "paths-rules", pr("paths-rules", "Payment rules"), "flag", "1 of 9 differ: her overrule. The path stays hers");
 	key(at(ch, 2, 0), "paths-ui", 1.15, [720, mid(pr("paths-ui", "Invoice queue page"))[1]]);
 	hl(atw(ch, 2, "she overruled"), at(ch, 2, 1) + 0.3, "paths-ui", pr("paths-ui", "Invoice queue page"), "flag", "3 of 8 differ: auto-merge suspended", "above");
 	key(at(ch, 3, 0), "paths-locales", 1.15, [720, mid(pr("paths-locales", "Translations"))[1]]);
@@ -364,28 +374,29 @@ function build() {
 	// --- scale: 120 scripted agents
 	const s = "scale";
 	chap(S(s).start, S("stack").start, "Scale", "120 scripted agents, 20 tasks");
-	["scale-548", "scale-556", "scale-566", "scale-576", "scale-586", "scale-596"].forEach((n, i, all) => key(S(s).start + ((at(s, 1, 0) - S(s).start) * i) / all.length, n, 1.0, [800, 450]));
-	const fr3 = R("scale-606", "row", "fr-3");
-	key(at(s, 1, 0), "scale-606", 1.45, mid(fr3));
-	hl(atw(s, 1, "the gate reads the file"), H(s).start + 0.3, "scale-606", fr3, "flag", "A file check, at the candidate's commit", "above");
-	["scale-616", "scale-626", "scale-640", "scale-660"].forEach((n, i) => key(H(s).start + 0.4 + i * 0.55, n, 1.15, [780, 330]));
+	["scale-440", "scale-450", "scale-455", "scale-460", "scale-465", "scale-470"].forEach((n, i, all) => key(S(s).start + ((at(s, 1, 0) - S(s).start) * i) / all.length, n, 1.0, [800, 450]));
+	const fr3 = R("scale-500", "row", "fr-3");
+	key(at(s, 1, 0), "scale-500", 1.45, mid(fr3));
+	hl(atw(s, 1, "the gate reads the file"), H(s).start + 0.3, "scale-500", fr3, "flag", "A file check, at the candidate's commit", "above");
+	["scale-475", "scale-480", "scale-490", "scale-520", "scale-540"].forEach((n, i) => key(H(s).start + 0.4 + i * 0.45, n, 1.15, [780, 330]));
 	const totals = R("scale-999", ".totals");
 	key(H(s).end - 0.2, "scale-999", 1.55, mid(totals));
 	const fig = (label) => R("scale-999", "fig", label);
 	hl(atw(s, 2, "Eighty broken files"), S(s).end, "scale-999", fig("bounced"), "flag");
-	hl(atw(s, 2, "The judge merged sixteen"), S(s).end, "scale-999", fig("merged by the judge alone"), "turf");
-	hl(atw(s, 2, "sent four"), S(s).end, "scale-999", fig("waiting for the steward"), "brass");
-	hl(atw(s, 2, "in about two minutes"), S(s).end, "scale-999", totals, "turf", "About two minutes, start to finish", "below");
-	key(at(s, 3, 0), "scale-999", 1.2, [790, 400]);
+	hl(atw(s, 2, "The judge merged nineteen"), S(s).end, "scale-999", fig("merged by the judge alone"), "turf");
+	hl(atw(s, 2, "and sent one"), S(s).end, "scale-999", fig("waiting for the steward"), "brass", "The one in ten", "below");
+	hl(atw(s, 3, "It all settled"), S(s).end, "scale-999", totals, "turf", "About two and a half minutes, start to finish", "below");
+	key(atw(s, 3, "These agents are scripted"), "scale-999", 1.2, [790, 400]);
 
 	// --- close: the ledger
 	const cl = "close";
 	chap(at(cl, 1, 0) - 0.5, T.duration, "Ledger", "every merge, and who decided it");
 	key(at(cl, 1, 0) - 0.5, "ledger", 1.45, [760, 400]);
-	key(atw(cl, 1, "With Steward", -0.2), "ledger", 1.45, [760, 1110], 2.6);
-	const dCell = (dec) => R("ledger", "ledgercell4", dec);
-	hl(atw(cl, 1, "every merge records"), T.duration, "ledger", dCell("d-l-es"), "brass", "The judge, under a grant the path earned", "above");
-	hl(atw(cl, 1, "who made the call"), T.duration, "ledger", dCell("d-t2"), "turf", "Dana, who overruled it", "below");
+	key(atw(cl, 1, "With Steward", -0.2), "ledger", 1.45, [760, 1170], 2.6);
+	const cells = RECTS.ledger.ledgercell4;
+	const t2 = cells.findIndex((r) => /d-t2/.test(r.text));
+	hl(atw(cl, 1, "every merge records"), T.duration, "ledger", cells[t2 - 1], "brass", "The judge, under a grant the path earned", "above");
+	hl(atw(cl, 1, "who made the call"), T.duration, "ledger", cells[t2], "turf", "Dana, who overruled it", "below");
 
 	KEYS.sort((p, q) => p.t - q.t);
 }
@@ -433,10 +444,12 @@ async function drawFootage(t) {
 		box.className = `hl ${h.color}`;
 		css(box, { left: `${h.r.x}px`, top: `${h.r.y}px`, width: `${h.r.w}px`, height: `${h.r.h}px`, opacity: o, borderWidth: `${4 / cur.s}px`, borderRadius: `${10 / cur.s}px` });
 		if (!h.label) continue;
+		const bx = SCREEN.x + cur.tx + h.r.x * cur.s, by = SCREEN.y + cur.ty + h.r.y * cur.s, bw = h.r.w * cur.s, bh = h.r.h * cur.s;
+		// A label whose box the camera has left would float, pinned to the edge, over something else: it goes too.
+		if (by + bh < SCREEN.y + 20 || by > SCREEN.y + SCREEN.h - 20 || bx + bw < SCREEN.x + 20 || bx > SCREEN.x + SCREEN.w - 20) continue;
 		const tg = tagEl(ti++);
 		tg.className = `tagline ${h.color}`;
 		if (tg.textContent !== h.label) tg.textContent = h.label;
-		const bx = SCREEN.x + cur.tx + h.r.x * cur.s, by = SCREEN.y + cur.ty + h.r.y * cur.s, bw = h.r.w * cur.s, bh = h.r.h * cur.s;
 		const tw = tg.offsetWidth, th = tg.offsetHeight;
 		let x = bx, y = by + bh + 10;
 		if (h.side === "above") y = by - th - 10;
@@ -467,10 +480,10 @@ async function drawFootage(t) {
 	const lock = `<svg width="26" height="26" viewBox="0 0 24 24"><rect x="4.5" y="10.5" width="15" height="10" rx="2" fill="#c1392b"/><path d="M8 10.5V8a4 4 0 0 1 8 0v2.5" fill="none" stroke="#c1392b" stroke-width="2.2"/></svg>`;
 	const forks = el("div", "panel", `<div style="font-weight:700;font-size:29px;margin-bottom:12px">In Cloudflare Artifacts</div>
 		<div style="display:grid;grid-template-columns:30px 1fr;column-gap:12px;align-items:center;padding:6px 0 14px;border-bottom:2px solid var(--rail)">${lock}<span class="mono" style="font-size:23px;font-weight:700">larkspur-ap</span><span></span><span class="nopush" style="font-size:23px;font-weight:600;color:var(--ink-3)">The app. No agent can push to it.</span></div>
-		${["deepseek", "gemma", "glm", "kimi", "nemotron", "qwen"].map((a) => `<div class="fork" style="display:flex;align-items:center;gap:12px;padding:9px 0;opacity:0">${silks(a, 30).svg}<span class="mono" style="font-size:19px;white-space:nowrap">larkspur-ap--t2--${a}</span><span class="tok" style="margin-left:auto;padding:3px 10px;border-radius:7px;background:var(--turf-2);color:var(--turf);font-weight:700;font-size:20px;opacity:0;white-space:nowrap">its own token</span></div>`).join("")}`, root);
+		${["claude-code", "deepseek", "gemma", "glm", "kimi", "nemotron", "qwen"].map((a) => `<div class="fork" style="display:flex;align-items:center;gap:12px;padding:9px 0;opacity:0">${silks(a, 30).svg}<span class="mono" style="font-size:19px;white-space:nowrap">larkspur-ap--t2--${a}</span><span class="tok" style="margin-left:auto;padding:3px 10px;border-radius:7px;background:var(--turf-2);color:var(--turf);font-weight:700;font-size:20px;opacity:0;white-space:nowrap">its own token</span></div>`).join("")}`, root);
 	css(forks, { left: "1106px", top: "196px", width: "560px", padding: "22px 24px" });
 	// Any agent that speaks HTTP and git.
-	const api = el("div", "panel mono", `<div style="color:#9aa8a0"># any agent: HTTP for the board, git for the code</div><div><span style="color:#7fbf98">POST</span> /api/tasks/t2/claim  {"files": ["src/rules.js"]}</div><div><span style="color:#7fbf98">git</span>  push              to its own fork, with its token</div><div><span style="color:#7fbf98">POST</span> /api/tasks/t2/done   {"summary": "…"}</div>`, root);
+	const api = el("div", "panel mono", `<div style="color:#9aa8a0"># Claude Code, from outside: HTTP for the claim, git for the code</div><div><span style="color:#7fbf98">$</span> steward-agent claim t2 --files src/rules.js,test/rules.test.js</div><div><span style="color:#7fbf98">$</span> git push             <span style="color:#9aa8a0">to its own fork, with its own token</span></div><div><span style="color:#7fbf98">$</span> steward-agent done t2 --summary "…"</div>`, root);
 	css(api, { left: "300px", top: "560px", width: "1100px", padding: "26px 32px", background: "var(--ink)", color: "#e8eee9", fontSize: "26px", lineHeight: "1.75", whiteSpace: "pre" });
 	// Budgets and plans.
 	const budget = el("div", "dark", "This path: 45 minutes and 400,000 tokens per fork", root);
@@ -505,7 +518,7 @@ async function drawFootage(t) {
 		forks: [960, 280, "Forks", "Artifacts"],
 		gate: [1360, 280, "Gate 1", "a Workflow"],
 		previews: [1360, 600, "Previews", "Worker Previews"],
-		decision: [960, 600, "The decision", "Workflow, Workers AI"],
+		decision: [960, 600, "The decision", "Workflow, and Clef"],
 		steward: [560, 600, "The steward", "a person"],
 		record: [160, 600, "main and the record", "Artifacts"],
 	};
@@ -530,9 +543,9 @@ async function drawFootage(t) {
 		lit("record", atw("stack", 0, "the decision record"), atw("stack", 1, "A Durable Object"));
 		lit("board", atw("stack", 1, "A Durable Object"), atw("stack", 1, "Workflows run"));
 		lit("gate", atw("stack", 1, "Workflows run"), atw("stack", 1, "Workers AI runs"));
-		lit("decision", atw("stack", 1, "and the decision"), atw("stack", 1, "and Worker Previews"));
-		lit("agents", atw("stack", 1, "Workers AI runs"), atw("stack", 1, "and Worker Previews"));
-		lit("previews", atw("stack", 1, "and Worker Previews"), s.end + 1);
+		lit("decision", atw("stack", 1, "and the decision"), atw("stack", 1, "Worker Previews show"));
+		lit("agents", atw("stack", 1, "Workers AI runs"), atw("stack", 1, "Worker Previews show"));
+		lit("previews", atw("stack", 1, "Worker Previews show"), s.end + 1);
 	};
 }
 

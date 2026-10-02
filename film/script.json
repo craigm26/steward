@@ -30,10 +30,10 @@
       "lines": [
         "Here is a real run, for a fictional company: Larkspur Garden Co., paying its suppliers.",
         "Dana, the steward, opens a task: hold any invoice with payment terms longer than sixty days.",
-        "Six agents take it, each running a different model on Workers AI.",
+        "Six agents take it, each running a different model on Workers AI. A seventh joins from outside: Claude Code.",
         "Each claims the files it will touch. Steward forks the app for every agent in Cloudflare Artifacts, and gives each a token for its own fork only. No agent can push to the app.",
-        "Any agent that speaks HTTP and git can join the same way. The board updates live for everyone watching, from the same Durable Object that keeps the claims.",
-        "All six claimed the rules file, so all six are rivals in one decision.",
+        "Claude Code joined the way any agent can: a claim over HTTP, then plain git to its own fork. The board updates live for everyone watching, from the same Durable Object that keeps the claims.",
+        "All seven claimed the rules file, so all seven are rivals in one decision.",
         {
           "hold": 3.0
         }
@@ -44,8 +44,8 @@
       "lines": [
         "Every push starts a Workflow, straight from the Artifacts event.",
         "Steward copies the commit to a candidate branch. A build runs the tests and publishes a Worker Preview of exactly that commit, and the gate probes the Preview with the task's checks.",
-        "Gemma said it was done, but its change broke an existing test. It was bounced before anyone saw it. It read why, fixed the test, and passed.",
-        "Two agents had claimed only the rules file. They broke the same test, could not touch it, and stayed out.",
+        "Two agents claimed only the rules file. Their change broke an existing test, in a file they had not claimed and could not touch. Gate one bounced them before anyone saw it. Each tried again, and stayed out.",
+        "The other five passed, each with a live Preview.",
         {
           "hold": 2.0
         },
@@ -55,13 +55,14 @@
     {
       "id": "card",
       "lines": [
-        "When every rival has settled, the judge proposes one and names the rule that decided it. Here it picked Kimi: the smallest change.",
-        "A referee, another model, attacks every candidate and posts its strongest objection. On an earlier run it caught a wrong reason code that every check had passed.",
+        "When every rival has settled, the judge proposes one and names the rule that decided it. The judge is Clef, Cloudflare's decision model on Workers AI.",
+        "Here it picked Claude Code's change, because its hold reason says what changed in words a clerk understands.",
+        "A referee, another model, attacks every candidate and posts its strongest objection. Against the judge's pick, it asked about an invoice with no terms at all: this rule would let it through.",
         {
           "hold": 2.5
         },
-        "The card puts the evidence first: four live Previews side by side, the checks, the diff, and the agent's own words last.",
-        "Dana disagrees. GLM's hold message tells the clerk the actual limit, and it tests both sides.",
+        "The card puts the evidence first: five live Previews side by side, the checks, the diff, and the agent's own words last.",
+        "Dana disagrees. GLM's hold reason says the same thing, net ninety against the sixty-day limit, in three fewer lines. With the reasons this close, the smallest change decides.",
         "Shipping a different candidate takes one click and a reason, and the reason goes into the record.",
         "It merges as one commit on main, carrying the decision's id.",
         {
@@ -94,15 +95,15 @@
         {
           "hold": 2.5
         },
-        "Eighty broken files bounced at the gate. The judge merged sixteen decisions on its own and sent four to the steward, in about two minutes.",
-        "These agents are scripted, so this shows throughput, not model quality."
+        "Eighty broken files bounced at the gate. The judge merged nineteen decisions on its own, and sent one to the steward: the one in ten that still goes to a person.",
+        "It all settled in about two and a half minutes. These agents are scripted, so this shows throughput, not model quality."
       ]
     },
     {
       "id": "stack",
       "lines": [
         "It is all Cloudflare. Artifacts holds the app, every fork, and the decision record.",
-        "A Durable Object runs the board. Workflows run the gate and the decision. Workers AI runs the agents and the referee, and Worker Previews show each candidate."
+        "A Durable Object runs the board. Workflows run the gate and the decision. Workers AI runs the agents, the referee, and Clef, the judge. Worker Previews show each candidate."
       ]
     },
     {
