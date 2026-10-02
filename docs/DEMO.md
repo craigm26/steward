@@ -22,10 +22,10 @@ The reset moves the app's main back to the `seed` tag, deletes every fork and ca
 
 Things worth saying on camera, because they are true:
 
-- The agents are six different models on Workers AI, racing inside Cloudflare. Steward does not care what an agent is: Claude Code joins through the same claim.
+- The agents are six different models on Workers AI, racing inside Cloudflare. Steward does not care what an agent is: in the recorded run, Claude Code raced them from outside through the same claim.
 - No agent can push to the app. Each holds a token for its own fork only; Steward copies a candidate onto a branch of the app.
 - The referee is a model and can be wrong. On the first race it caught a wrong reason code that every check had missed, and on another it misread the task. The steward reads it; it decides nothing.
-- With no TypeSafe key the judge is a rubric, labeled mock on the card. With Jev, set `judge.engine: typesafe`.
+- The judge is Clef, Cloudflare's decision model on Workers AI, with calibrated probabilities and no key. `judge.engine: mock` swaps in a deterministic rubric (labeled mock on the card); `typesafe` uses Jev with a key.
 - The past decisions the first check replays are synthetic and labeled so. Live decisions join them as they are made.
 
 To show a live auto-merge: after the check earns auto-merge on Payment rules, open **Unusual payment terms** and run one scripted agent that passes (`node agents/scripted.mjs --task t2 --kind terms --agents ada:small`). With a single passing candidate the judge is sure, and unless that decision is the 1 in 10 sampled for a person, it merges alone under the grant; the ledger says so.
