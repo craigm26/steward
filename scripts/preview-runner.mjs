@@ -107,6 +107,15 @@ const globRe = (glob) =>
 			"$",
 	);
 
+/** The failing tests, in either of node --test's reporters (TAP's "not ok", or spec's "✖", the default since Node 23),
+ * so a bounced agent reads which test it broke. */
+function failures(out) {
+	const lines = out.split("\n").map((l) => l.trim());
+	const failed = [...new Set(lines.filter((l) => /^not ok\b/.test(l) || (/^✖ /.test(l) && !/^✖ failing tests:/.test(l))).map((l) => l.replace(/^✖ /, "not ok - ").replace(/\s*\([\d.]+ ?ms\)$/, "")))];
+	const count = lines.find((l) => /^(# fail|ℹ fail) [1-9]/.test(l));
+	return [...failed.slice(0, 4), count].filter(Boolean).join("; ");
+}
+
 async function report(commit, ok, detail) {
 	await fetch(`${vars.STEWARD_URL}/api/builds`, {
 		method: "POST",
@@ -133,7 +142,7 @@ async function build(c) {
 		try {
 			sandboxedBuild(dir, env);
 		} catch (e) {
-			const why = String(e.stdout).split("\n").filter((l) => /^not ok|# fail/i.test(l.trim())).slice(0, 5).join("; ") || "npm run build exited non-zero";
+			const why = failures(String(e.stdout)) || "npm run build exited non-zero";
 			await report(c.commit, false, `npm run build: ${why}`);
 			return console.log(`  FAIL ${c.id} ${c.commit.slice(0, 7)}: build or tests failed, no Preview: ${why}`);
 		}

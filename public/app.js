@@ -28,7 +28,9 @@ function jersey(name, size = 22) {
 	return h("span", { svg: silks(name, size).svg, style: `display:inline-flex` });
 }
 function agentTag(name, kind, size = 22) {
-	return h("span", { class: "agent" }, jersey(name, size), name, kind && kind !== "agent" ? h("span", { class: "kind" }, kind) : null);
+	// Model agents show their model, scripted ones say so, and an agent that joined with its own key is an outside agent.
+	const label = kind === "agent" ? "outside agent" : kind;
+	return h("span", { class: "agent" }, jersey(name, size), name, label ? h("span", { class: "kind" }, label) : null);
 }
 const stewardName = (key) => state.paths?.project?.stewards?.find((s) => s.key === key)?.name ?? key;
 const cap = (s) => (s ? s[0].toUpperCase() + s.slice(1) : s);

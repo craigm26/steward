@@ -10,7 +10,8 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 
 const root = new URL("..", import.meta.url).pathname;
-const cap = join(root, "film", "capture", "race2");
+const RUN = process.env.FILM_RUN ?? "race3";
+const cap = join(root, "film", "capture", RUN);
 const out = join(root, "film", "shots");
 const stage = join(root, "film", "stage");
 mkdirSync(out, { recursive: true });
@@ -35,13 +36,15 @@ const boardAt = (s) => read(nearest(boards, s).f);
 const pathsNear = (s) => read(nearest(pathsAt, s).f);
 const localPreviews = (text) => text.replace(/https:\/\/(cand-[a-z0-9-]+)-larkspur-ap\.craigm26\.workers\.dev/g, "previews/$1.html");
 
+const maybe = (f) => (existsSync(join(cap, f)) ? { [f]: read(f) } : {});
 function fixtures(over) {
+	const files = { ...maybe("files.json"), ...maybe("blame-src-rules.js.json"), ...maybe("ledger.json"), ...maybe("decision-d-t1-merged.json") };
 	return {
 		"/api/whoami": JSON.stringify({ kind: "admin" }),
-		"/api/files": read("files.json"),
-		"/api/blame?file=src%2Frules.js": read("blame-src-rules.js.json"),
-		"/api/ledger": read("ledger.json"),
-		"/api/decisions/d-t1": read("decision-d-t1-merged.json"),
+		...(files["files.json"] ? { "/api/files": files["files.json"] } : {}),
+		...(files["blame-src-rules.js.json"] ? { "/api/blame?file=src%2Frules.js": files["blame-src-rules.js.json"] } : {}),
+		...(files["ledger.json"] ? { "/api/ledger": files["ledger.json"] } : {}),
+		...(files["decision-d-t1-merged.json"] ? { "/api/decisions/d-t1": files["decision-d-t1-merged.json"] } : {}),
 		...over,
 	};
 }
@@ -50,37 +53,38 @@ function fixtures(over) {
 const open = (sel) => `document.querySelectorAll(${JSON.stringify(sel)}).forEach((d) => d.open = true)`;
 const shots = [];
 const boardShot = (name, s, task = "t2", post = "") => shots.push({ name, hash: `#/board/${task}`, fx: fixtures({ "/api/board": boardAt(s), "/api/paths": pathsNear(s) }), post });
-// The terms race (task t2), as the board showed it.
-for (const s of [171, 175, 177, 179, 184, 194, 206, 218, 230, 235, 247, 261, 267, 440, 452]) boardShot(`race-${String(s).padStart(3, "0")}`, s);
-boardShot("race-206-checks", 206, "t2", `[...document.querySelectorAll("tr")].filter((r) => /gemma/.test(r.textContent)).forEach((r) => r.querySelectorAll("details").forEach((d) => d.open = true))`);
+// The terms race (task t2), as the board showed it: opened, claimed by seven, checked, two bounced, five through.
+for (const s of [20, 31, 33, 38, 43, 50, 55, 64, 67, 78, 95, 106, 135, 141, 150]) boardShot(`race-${String(s).padStart(3, "0")}`, s);
+boardShot("race-064-checks", 64, "t2", `[...document.querySelectorAll("tr")].filter((r) => /nemotron|deepseek/.test(r.textContent)).forEach((r) => r.querySelectorAll("details").forEach((d) => d.open = true))`);
 // The card: ready, Dana writing her reason, shipped. Taller than the screen (h), so the film can pan down a lane to
 // the referee's objection and the agent's own words.
 const ready = localPreviews(read("decision-d-t2-ready.json"));
 const merged = localPreviews(read("decision-d-t2-merged.json"));
-shots.push({ name: "card-ready", h: 1400, hash: "#/decision/d-t2", fx: fixtures({ "/api/board": boardAt(452), "/api/paths": pathsNear(452), "/api/decisions/d-t2": ready }), post: "" });
+shots.push({ name: "card-ready", h: 1400, hash: "#/decision/d-t2", fx: fixtures({ "/api/board": boardAt(150), "/api/paths": pathsNear(150), "/api/decisions/d-t2": ready }), post: "" });
 shots.push({
 	name: "card-reason",
 	h: 1400,
 	hash: "#/decision/d-t2",
-	fx: fixtures({ "/api/board": boardAt(452), "/api/paths": pathsNear(452), "/api/decisions/d-t2": ready }),
-	post: `(() => { const lane = [...document.querySelectorAll(".lane")].find((l) => /\\bglm\\b/.test(l.querySelector(".lanehead").textContent)); const d = lane.querySelector("details.ship"); d.open = true; const t = d.querySelector("textarea"); t.value = "GLM's hold message tells the clerk the actual limit, the 60 days live in one constant, and it tests both sides: net 90 held, net 45 paid."; lane.scrollIntoView({ inline: "center" }); })()`,
+	fx: fixtures({ "/api/board": boardAt(150), "/api/paths": pathsNear(150), "/api/decisions/d-t2": ready }),
+	post: `(() => { const lane = [...document.querySelectorAll(".lane")].find((l) => /\\bglm\\b/.test(l.querySelector(".lanehead").textContent)); const d = lane.querySelector("details.ship"); d.open = true; const t = d.querySelector("textarea"); t.value = "GLM's hold reason says the same as the judge's pick, net 90 against the 60-day limit, in three fewer lines. With the reasons this close, the smallest change decides."; lane.scrollIntoView({ inline: "center" }); })()`,
 });
-shots.push({ name: "card-merged", h: 1400, hash: "#/decision/d-t2", fx: fixtures({ "/api/board": boardAt(500), "/api/paths": pathsNear(500), "/api/decisions/d-t2": merged }), post: "" });
+shots.push({ name: "card-merged", h: 1400, hash: "#/decision/d-t2", fx: fixtures({ "/api/board": boardAt(300), "/api/paths": pathsNear(300), "/api/decisions/d-t2": merged }), post: "" });
 // Why-blame on a line GLM's decision put there.
 const blame = JSON.parse(read("blame-src-rules.js.json"));
 const line = blame.find((l) => l.decision === "d-t2" && /unusual|terms/i.test(l.text))?.n ?? blame.find((l) => l.decision === "d-t2")?.n;
-shots.push({ name: "why", hash: `#/why/src%2Frules.js/${line}`, fx: fixtures({ "/api/board": boardAt(500), "/api/paths": pathsNear(500), "/api/decisions/d-t2": merged }), post: "", wait: 1400 });
-shots.push({ name: "why-plain", hash: "#/why/src%2Frules.js", fx: fixtures({ "/api/board": boardAt(500), "/api/paths": pathsNear(500), "/api/decisions/d-t2": merged }), post: "" });
+shots.push({ name: "why", hash: `#/why/src%2Frules.js/${line}`, fx: fixtures({ "/api/board": boardAt(300), "/api/paths": pathsNear(300), "/api/decisions/d-t2": merged }), post: "", wait: 1400 });
+shots.push({ name: "why-plain", hash: "#/why/src%2Frules.js", fx: fixtures({ "/api/board": boardAt(300), "/api/paths": pathsNear(300), "/api/decisions/d-t2": merged }), post: "" });
 // The check, path by path.
 for (const [name, f] of [["paths-before", "paths-before-checks.json"], ["paths-rules", "paths-after-rules.json"], ["paths-ui", "paths-after-ui.json"], ["paths-locales", "paths-after-locales.json"]]) {
-	shots.push({ name, hash: "#/paths", fx: fixtures({ "/api/board": boardAt(530), "/api/paths": read(f) }), post: "" });
+	shots.push({ name, hash: "#/paths", fx: fixtures({ "/api/board": boardAt(300), "/api/paths": read(f) }), post: "" });
 }
 // The scale run.
-for (const s of [548, 556, 566, 576, 586, 596, 606, 616, 626, 640, 660, 999]) boardShot(`scale-${s}`, s, "l-fr");
+for (const s of [440, 450, 455, 460, 465, 470, 475, 480, 490, 500, 520, 540]) boardShot(`scale-${s}`, s, "l-fr");
+boardShot("scale-999", 99999, "l-fr");
 // What a visitor arriving from a link sees first (not in the film; a check on the visitor strip).
-shots.push({ name: "visitor", hash: "#/board/t2", fx: fixtures({ "/api/whoami": JSON.stringify({ kind: "public" }), "/api/board": boardAt(999), "/api/paths": pathsNear(999) }), post: "" });
+shots.push({ name: "visitor", hash: "#/board/t2", fx: fixtures({ "/api/whoami": JSON.stringify({ kind: "public" }), "/api/board": boardAt(99999), "/api/paths": pathsNear(99999) }), post: "" });
 // The ledger at the end, tall enough to reach Dana's two decisions under the judge's sixteen.
-shots.push({ name: "ledger", h: 1500, hash: "#/ledger", fx: fixtures({ "/api/board": boardAt(660), "/api/paths": read("paths-end.json") }), post: "" });
+shots.push({ name: "ledger", h: 1500, hash: "#/ledger", fx: fixtures({ "/api/board": boardAt(99999), "/api/paths": read("paths-end.json") }), post: "" });
 
 // ---------------------------------------------------------------- element boxes
 const RECTS = `(() => {
