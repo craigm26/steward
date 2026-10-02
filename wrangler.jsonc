@@ -13,7 +13,9 @@
   ],
   "vars": {
     // The workers.dev subdomain of the account, used to name candidate Preview URLs.
-    "WORKERS_SUBDOMAIN": "craigm26"
+    "WORKERS_SUBDOMAIN": "craigm26",
+    // The record repo: playbooks, decisions, checks and grants for the app.
+    "RECORD_REPO": "larkspur-ap.record"
   },
   "observability": {
     "enabled": true

@@ -1,16 +1,25 @@
 {
   "compilerOptions": {
     "target": "es2024",
-    "lib": ["es2024", "esnext.disposable"],
+    "lib": [
+      "es2024",
+      "esnext.disposable"
+    ],
     "module": "es2022",
     "moduleResolution": "bundler",
-    "types": ["./worker-configuration.d.ts"],
+    "types": [
+      "./worker-configuration.d.ts"
+    ],
     "strict": true,
     "noEmit": true,
     "skipLibCheck": true,
     "isolatedModules": true,
     "allowJs": false,
-    "resolveJsonModule": true
+    "resolveJsonModule": true,
+    "allowImportingTsExtensions": true
   },
-  "include": ["src/**/*.ts"]
+  "include": [
+    "src/**/*.ts",
+    "vendor/**/*.ts"
+  ]
 }
